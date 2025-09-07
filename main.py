@@ -82,14 +82,26 @@ unh_blue = "#003366"
 unh_white = "#FFFFFF"
 unh_accent = "#00AEEF"
 
+custom_css = f"""
+#header-box {{
+    background-color: {unh_blue};
+    color: {unh_white};
+    padding: 20px;
+    border-radius: 8px;
+    text-align: center;
+}}
+#header-box h1, #header-box p {{
+    color: {unh_white};
+}}
+
 with gr.Blocks(theme=gr.themes.Soft()) as demo:
     # header
     with gr.Row(elem_id="header"):
-        gr.Markdown(
-            f"""
-            <div style="background-color:{unh_blue}; color:{unh_white}; padding:20px; border-radius:8px; text-align:center;">
-                <h1 style="margin-bottom:10px;">UNH Graduate Catalog Chatbot</h1>
-                <p style="margin:0;">Ask questions about programs, courses, and policies from the UNH Graduate Catalog</p>
+        gr.HTML(
+            """
+            <div id="header-box">
+                <h1>UNH Graduate Catalog Chatbot</h1>
+                <p>Ask questions about programs, courses, and policies from the UNH Graduate Catalog</p>
             </div>
             """
         )
