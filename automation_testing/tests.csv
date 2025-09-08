@@ -1,0 +1,13 @@
+question,expected_any_of
+"Do all master’s degrees require a capstone?","must include a capstone experience|capstone experience"
+"How many semesters of Doctoral Research (999) must Ph.D. students register for?","minimum of two semesters|register for 999 each semester"
+"What is the time limit for a master’s degree?","four years|4 years"
+"How many thesis credits must a master’s student enroll in?","at least 6|no more than 10|6 but no more than 10"
+"How many courses are required for a graduate certificate program?","at least 4 graduate courses|minimium of 12 credits|minimum of 12 credits"
+"What is the certificate time limit?","completed within 3 years|3 years"
+"Can students pursue dual degrees at UNH?","pursue concurrent degrees|two degrees at UNH|dual degrees"
+"What must be submitted after completing a doctoral dissertation?","submitted for publication by ProQuest|UNH ETD Administrator"
+"Who approves a master’s thesis?","committee composed of a regular member of the graduate faculty|appointed by the dean of the Graduate School"
+"Do Ph.D. students need a guidance committee?","guidance committee should be appointed"
+"Are Spanish courses offered?","yes"
+"Are German courses offered?","no"
