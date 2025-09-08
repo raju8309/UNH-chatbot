@@ -9,3 +9,5 @@ question,expected_any_of
 "What must be submitted after completing a doctoral dissertation?","submitted for publication by ProQuest|UNH ETD Administrator"
 "Who approves a master’s thesis?","committee composed of a regular member of the graduate faculty|appointed by the dean of the Graduate School"
 "Do Ph.D. students need a guidance committee?","guidance committee should be appointed"
+"Are Spanish courses offered?","yes"
+"Are German courses offered?","no"
