@@ -1,13 +1,13 @@
+# graduation_scrape.py
+# Scrapes the UNH "Graduation" page into ordered JSON.
+
 from bs4 import BeautifulSoup
 import requests
 import json
 from urllib.parse import urljoin
 
-URL = (
-    "https://catalog.unh.edu/graduate/academic-regulations-degree-"
-    "requirements/degree-requirements/"
-)
-OUTPUT_FILE = "degree_requirements.json"
+URL = "https://catalog.unh.edu/graduate/academic-regulations-degree-requirements/graduation/"
+OUTPUT_FILE = "graduation.json"
 
   
 # clean up text inside tags
@@ -60,8 +60,6 @@ def push_section(level, section_title):
     new_node = {"type": "section", "title": section_title, "content": []}
     parent["content"].append(new_node)
     stack.append((level, new_node))
-
-
 
   
 def add_paragraph(tag):
@@ -137,7 +135,7 @@ def normalize(section_node):
   
 print("[info] assembling JSON...")
 page_title = (
-    clean_text(soup.find("h1")) if soup.find("h1") else "Degree Requirements"
+    clean_text(soup.find("h1")) if soup.find("h1") else "Graduation"
 )
 sections = [
     normalize(n) for n in root["content"] if n.get("type") == "section"

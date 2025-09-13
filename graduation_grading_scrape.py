@@ -1,13 +1,13 @@
+# graduation_grading_scrape.py
+# Scrapes the UNH "Graduation_grading" page into ordered JSON.
+
 from bs4 import BeautifulSoup
 import requests
 import json
 from urllib.parse import urljoin
 
-URL = (
-    "https://catalog.unh.edu/graduate/academic-regulations-degree-"
-    "requirements/degree-requirements/"
-)
-OUTPUT_FILE = "degree_requirements.json"
+URL = "https://catalog.unh.edu/graduate/academic-regulations-degree-requirements/grading/"
+OUTPUT_FILE = "graduation_grading.json"
 
   
 # clean up text inside tags
@@ -61,15 +61,51 @@ def push_section(level, section_title):
     parent["content"].append(new_node)
     stack.append((level, new_node))
 
-
-
   
 def add_paragraph(tag):
+    # get current section node
     _, current = stack[-1]
+
+    # If in "Grades" section and paragraph starts with <strong>Title:</strong>
+    current_title = (current.get("title") or "").strip().lower()
+    first_child = tag.contents[0] if tag.contents else None
+    if (
+        current_title == "grades" and
+        getattr(first_child, "name", None) == "strong"
+    ):
+        # ex: <strong>Letter grades:</strong> rest of the text...
+        sub_title = clean_text(first_child).rstrip(":").strip()
+        # remove the <strong>…</strong> so we can grab the rest as the text
+        first_child.extract()
+        sub_text = clean_text(tag)
+
+        # collect any links in the remaining paragraph
+        sub_links = [
+            {
+                "label": clean_text(a),
+                "url": urljoin(URL, a["href"].strip())
+            }
+            for a in tag.find_all("a", href=True)
+        ]
+
+        # create a subsection node under "Grades"
+        sub_node = {"type": "section", "title": sub_title, "content": []}
+        if sub_text:
+            text_item = {"type": "text", "text": sub_text}
+            if sub_links:
+                text_item["links"] = sub_links
+            sub_node["content"].append(text_item)
+
+        current["content"].append(sub_node)
+        return  # done handling this paragraph
+
+    # normal paragraph handling (all other sections / paragraphs)
     item = {"type": "text", "text": clean_text(tag)}
-    # collect any links inside the paragraph
     links = [
-        {"label": clean_text(a), "url": urljoin(URL, a["href"].strip())}
+        {
+            "label": clean_text(a),
+            "url": urljoin(URL, a["href"].strip())
+        }
         for a in tag.find_all("a", href=True)
     ]
     if links:
@@ -83,7 +119,10 @@ def add_list(tag):
     item = {"type": "list", "items": items}
     # also collect links inside list items
     links = [
-        {"label": clean_text(a), "url": urljoin(URL, a["href"].strip())}
+        {
+            "label": clean_text(a),
+            "url": urljoin(URL, a["href"].strip())
+        }
         for a in tag.find_all("a", href=True)
     ]
     if links:
@@ -137,7 +176,7 @@ def normalize(section_node):
   
 print("[info] assembling JSON...")
 page_title = (
-    clean_text(soup.find("h1")) if soup.find("h1") else "Degree Requirements"
+    clean_text(soup.find("h1")) if soup.find("h1") else "Graduate Grading"
 )
 sections = [
     normalize(n) for n in root["content"] if n.get("type") == "section"
@@ -156,3 +195,4 @@ with open(OUTPUT_FILE, "w", encoding="utf-8") as f:
     json.dump(data, f, indent=2, ensure_ascii=False)
 
 print("[done] wrote:", OUTPUT_FILE)
+
