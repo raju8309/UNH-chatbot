@@ -32,9 +32,10 @@ The chatbot follows a simple retrieval-augmented generation (RAG) architecture:
    - The model generates an answer restricted to the context and includes citations for transparency.
  
 4. **User Interface**
-   - Built using **Next.js** with TailwindCSS for an interactive web-based chat interface.
    - Displays both the answer and source citations for each query.
- 
+   - Built using **Next.js** with TailwindCSS for an interactive web-based chat interface.
+   - Follows the [UNH branding guidelines](https://www.unh.edu/marketing/resources).
+
 ## Testing
  
 - Automated tests conducted using `test/run_tests.py` with a CSV file of sample questions and expected answers.
