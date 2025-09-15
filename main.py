@@ -1,9 +1,9 @@
 import gradio as gr
-import pdfplumber
 import numpy as np
 from sentence_transformers import SentenceTransformer
 from transformers import pipeline
 import json
+from functools import lru_cache
 
 # for chunking text
 chunks_embeddings = None
@@ -13,11 +13,11 @@ chunk_sources = []
 # embeddings model (local + small)
 embed_model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
 
-# load local Flan-T5 Base for queries
+# load local Flan-T5 Small for queries
 qa_pipeline = pipeline(
     "text2text-generation",
-    model="google/flan-t5-base", # requires ~1gb 
-    device=-1  # CPU currently better performance on GPU (0)
+    model="google/flan-t5-small",
+    device=-1,  # CPU currently better performance on GPU (0)
 )
 
 def load_json_file(path):
@@ -35,7 +35,7 @@ def load_json_file(path):
             title = sec.get("title", "")
             full_title = f"{parent_title} > {title}" if parent_title else title
 
-            # Add plain text
+            # add plain text
             for t in sec.get("text", []):
                 new_texts.append(t)
                 new_sources.append({
@@ -43,7 +43,7 @@ def load_json_file(path):
                     "url": data.get("url", "")
                 })
 
-            # Add links (label + URL)
+            # add links (label + URL)
             for link in sec.get("links", []):
                 label = link.get("label")
                 url = link.get("url")
@@ -51,14 +51,15 @@ def load_json_file(path):
                     new_texts.append(f"Courses: {label}")
                     new_sources.append({
                         "title": label,
-                        "url": url})
+                        "url": url
+                    })
 
             if "subsections" in sec:
                 recurse_sections(sec["subsections"], parent_title=full_title)
 
     recurse_sections(data.get("sections", []))
 
-    # Append new chunks to existing ones
+    # append new chunks to existing ones
     if new_texts:
         if chunks_embeddings is None:
             chunks_embeddings = embed_model.encode(new_texts, convert_to_numpy=True)
@@ -74,6 +75,7 @@ def load_json_file(path):
     else:
         print(f"WARNING: no text found in {path}")
 
+
 # retrieval utilities
 def get_top_chunks(question, top_k=3):
     if chunks_embeddings is None or len(chunks_embeddings) == 0:
@@ -85,23 +87,24 @@ def get_top_chunks(question, top_k=3):
     top_indices = scores.argsort()[-top_k:][::-1]
     return [(chunk_texts[i], chunk_sources[i]) for i in top_indices]
 
-# answer generation with Flan-T5 Base
-def answer_question(message, history=None):
-    top_chunks = get_top_chunks(message)
+
+# core answer function (not cached directly)
+def _answer_question(question):
+    top_chunks = get_top_chunks(question)
     context = " ".join([text for text, _ in top_chunks])
 
     prompt = (
         "Answer the question ONLY using the provided context. "
-        "If the answer cannot be found, say you don't know."
+        "If the answer cannot be found, say you don't know. "
         "If the context does not mention the degree, say you don't know.\n\n"
-        f"Context:\n{context}\n\nQuestion: {message}\nAnswer:"
+        f"Context:\n{context}\n\nQuestion: {question}\nAnswer:"
     )
 
     try:
-        result = qa_pipeline(prompt, max_new_tokens=256)
+        result = qa_pipeline(prompt, max_new_tokens=128)  # limit tokens
         answer = result[0]["generated_text"].strip()
 
-        # Build citations line by line
+        # build citations line by line
         seen = set()
         citation_lines = []
         for _, src in top_chunks:
@@ -118,30 +121,30 @@ def answer_question(message, history=None):
     except Exception as e:
         return f"ERROR running local model: {e}"
 
-# UI elements
 
+# cached wrapper to handle Gradio inputs safely
+@lru_cache(maxsize=128)
+def cached_answer_str(question_str):
+    return _answer_question(question_str)
+
+
+def answer_question(message, history=None):
+    # message might be a list from Gradio, convert to string
+    if isinstance(message, list):
+        message = " ".join(message)
+    return cached_answer_str(message)
+
+
+# UI elements
 unh_blue = "#003366"
 unh_white = "#FFFFFF"
-unh_accent = "#00AEEF"
-
-custom_css = f"""
-#header-box {{
-    background-color: {unh_blue};
-    color: {unh_white};
-    padding: 20px;
-    border-radius: 8px;
-    text-align: center;
-}}
-#header-box h1, #header-box p {{
-    color: {unh_white};
-}}"""
 
 with gr.Blocks(theme=gr.themes.Soft()) as demo:
     # header
     with gr.Row(elem_id="header"):
         gr.HTML(
             """
-            <div id="header-box">
+            <div style="background-color: #003366; color: white; padding:20px; border-radius:8px; text-align:center;">
                 <h1>UNH Graduate Catalog Chatbot</h1>
                 <p>Ask questions about programs, courses, and policies from the UNH Graduate Catalog</p>
             </div>
@@ -159,7 +162,7 @@ with gr.Blocks(theme=gr.themes.Soft()) as demo:
     # footer
     with gr.Row(elem_id="footer"):
         gr.Markdown(
-            f"""
+            """
             <div style="text-align:center; padding:10px; font-size:14px; color:#555;">
                 <hr style="margin:10px 0;">
                 <p>Built for the <strong>University of New Hampshire</strong> Graduate Catalog project</p>
@@ -168,7 +171,6 @@ with gr.Blocks(theme=gr.themes.Soft()) as demo:
         )
 
 if __name__ == "__main__":
-    # Load file(s) pre-launch
     load_json_file("course_descriptions.json")
     load_json_file("degree_requirements.json")
     demo.launch()
