@@ -23,9 +23,9 @@ print("Loading app…")
 app = importlib.import_module("main")  # imports ROOT/main.py
 
 # Build embeddings from JSON (assumes file lives at repo root)
-JSON_PATH = ROOT / "degree_requirements.json"
+JSON_PATH = ROOT / "../scrape/degree_requirements.json"
 app.load_json_file(str(JSON_PATH))
-JSON_PATH = ROOT / "course_descriptions.json"
+JSON_PATH = ROOT / "../scape/course_descriptions.json"
 app.load_json_file(str(JSON_PATH))
 
 def ask(q: str) -> str:

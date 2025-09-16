@@ -2,10 +2,19 @@
 
 
 import React, { useState, useRef, useEffect } from "react";
+// API endpoint for chat
+const CHAT_API_URL = "http://localhost:8000/chat";
+
+export type ChatSource = { title: string; url?: string };
+export type ChatMessage = {
+  role: string;
+  content: string;
+  sources?: ChatSource[];
+};
 
 export default function Home() {
   // Placeholder for chat messages
-  const [messages, setMessages] = useState<{role: string, content: string}[]>([]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
 
   // Ref for chat scroll
@@ -16,18 +25,29 @@ export default function Home() {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  const sendMessage = (e: React.FormEvent) => {
+  const sendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim()) return;
 
     // Add user message
     setMessages(prev => [...prev, { role: "user", content: input }]);
+    const userInput = input;
     setInput("");
 
-    // Simulate bot response
-    setTimeout(() => {
-      setMessages(prev => [...prev, { role: "bot", content: "This is a placeholder response." }]);
-    }, 1000);
+    try {
+      const res = await fetch(CHAT_API_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ message: userInput }),
+      });
+      if (!res.ok) throw new Error("API error");
+      const data = await res.json();
+      setMessages(prev => [...prev, { role: "bot", content: data.answer, sources: data.sources }]);
+    } catch (err) {
+      setMessages(prev => [...prev, { role: "bot", content: "Sorry, there was an error connecting to the chatbot API.", sources: [] }]);
+    }
   };
 
   return (
@@ -44,16 +64,16 @@ export default function Home() {
             {messages.map((msg, i) => {
               // Add extra margin if previous message is a different role
               const isRoleChange = i > 0 && messages[i - 1].role !== msg.role;
-        if (msg.role === "user") {
+              if (msg.role === "user") {
                 return (
                   <div
                     key={i}
                     className={`flex justify-end mb-2${i === messages.length - 1 ? ' mb-6' : ''}`}
                     style={isRoleChange ? { marginTop: '1rem' } : {}}
                   >
-          <div className="bg-[var(--unh-blue)] text-[var(--unh-white)] rounded-2xl break-words whitespace-pre-line m-1 px-6 py-4 text-lg md:text-xl max-w-[800px] w-fit block box-border">
+                    <div className="bg-[var(--unh-blue)] text-[var(--unh-white)] rounded-2xl break-words whitespace-pre-line m-1 px-6 py-4 text-lg md:text-xl max-w-[800px] w-fit block box-border">
                       {msg.content}
-          </div>
+                    </div>
                   </div>
                 );
               } else {
@@ -63,9 +83,25 @@ export default function Home() {
                     className={`flex justify-start mb-2${i === messages.length - 1 ? ' mb-6' : ''}`}
                     style={isRoleChange ? { marginTop: '1rem' } : {}}
                   >
-          <div className="bg-[var(--unh-light-gray)] text-black rounded-2xl break-words whitespace-pre-line m-1 px-6 py-4 text-lg md:text-xl max-w-[800px] w-fit block box-border">
-                      {msg.content}
-          </div>
+                    <div className="bg-[var(--unh-light-gray)] text-black rounded-2xl break-words whitespace-pre-line m-1 px-6 py-4 text-lg md:text-xl max-w-[800px] w-fit block box-border">
+                      <div>{msg.content}</div>
+                      {msg.sources && msg.sources.length > 0 && (
+                        <div className="mt-4">
+                          <div className="font-semibold text-sm mb-1">Sources:</div>
+                          <ul className="list-disc list-inside text-sm text-gray-700">
+                            {msg.sources.map((src, idx) => (
+                              <li key={idx}>
+                                {src.url ? (
+                                  <a href={src.url} target="_blank" rel="noopener noreferrer" className="underline text-blue-700">{src.title}</a>
+                                ) : (
+                                  src.title
+                                )}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 );
               }

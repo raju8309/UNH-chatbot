@@ -3,8 +3,8 @@ import time
 from main import load_json_file, cached_answer_str as answer_question
 
 # load data before testing
-load_json_file("course_descriptions.json")
-load_json_file("degree_requirements.json")
+load_json_file("../scrape/course_descriptions.json")
+load_json_file("../scrape/degree_requirements.json")
 
 # warm up model
 _ = answer_question("Warmup query")

@@ -1,17 +1,26 @@
-from fastapi import FastAPI
-import uvicorn
 import numpy as np
 from sentence_transformers import SentenceTransformer
 from transformers import pipeline
+from pydantic import BaseModel
+
 import json
 from functools import lru_cache
 
-from fastapi import Request
+from fastapi import FastAPI
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel
+from fastapi.middleware.cors import CORSMiddleware
+import uvicorn
 
 # FastAPI backend app
 app = FastAPI()
+# Allow CORS for frontend
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # You can restrict this to your frontend URL
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # for chunking text
 chunks_embeddings = None
@@ -110,26 +119,22 @@ def _answer_question(question):
         result = qa_pipeline(prompt, max_new_tokens=128)  # limit tokens
         answer = result[0]["generated_text"].strip()
 
-        # build citations line by line
+        # build sources list
         seen = set()
-        citation_lines = []
+        sources = []
         for _, src in top_chunks:
             key = (src["title"], src.get("url"))
             if key not in seen:
                 seen.add(key)
-                line = f"- {src['title']}"
-                if src.get("url"):
-                    line += f" ({src['url']})"
-                citation_lines.append(line)
+                sources.append({"title": src["title"], "url": src.get("url", "")})
 
-        citations = "\n".join(citation_lines)
-        return f"{answer}\n\nSources:\n{citations}"
+        return answer, sources
     except Exception as e:
-        return f"ERROR running local model: {e}"
+        return f"ERROR running local model: {e}", []
 
 # cached wrapper for answers
 @lru_cache(maxsize=128)
-def cached_answer_str(question_str):
+def cached_answer_tuple(question_str):
     return _answer_question(question_str)
 
 # FastAPI request model
@@ -140,6 +145,7 @@ class ChatRequest(BaseModel):
 # FastAPI response model
 class ChatResponse(BaseModel):
     answer: str
+    sources: list[dict] = []
 
 # FastAPI chat endpoint
 @app.post("/chat", response_model=ChatResponse)
@@ -147,11 +153,13 @@ async def answer_question(request: ChatRequest):
     message = request.message
     if isinstance(message, list):
         message = " ".join(message)
-    answer = cached_answer_str(message)
-    return ChatResponse(answer=answer)
+    answer, sources = cached_answer_tuple(message)
+    return ChatResponse(answer=answer, sources=sources)
 
+# Load data files
+load_json_file("../scrape/course_descriptions.json")
+load_json_file("../scrape/degree_requirements.json")
+
+# Run server
 if __name__ == "__main__":
-    # Load data files and run server
-    load_json_file("course_descriptions.json")
-    load_json_file("degree_requirements.json")
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
