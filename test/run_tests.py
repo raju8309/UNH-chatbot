@@ -4,7 +4,7 @@ import importlib
 import sys
 from pathlib import Path
 
-# --- Locate repo root (parent of automation_testing) and add to sys.path ---
+# --- Locate repo root (parent of test) and add to sys.path ---
 HERE = Path(__file__).resolve()
 ROOT = HERE.parent.parent            # .../Fall2025-Team-Goopy
 sys.path.insert(0, str(ROOT))
