@@ -16,12 +16,12 @@ import os
 # FastAPI backend app
 app = FastAPI()
 
-
 # Allow CORS for frontend
+PUBLIC_URL = os.getenv("PUBLIC_URL", "http://localhost:8003")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # You can restrict this to your frontend URL
-    allow_credentials=True,
+    allow_origins=[PUBLIC_URL],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
