@@ -17,7 +17,7 @@ import os
 app = FastAPI()
 
 # Allow CORS for frontend
-PUBLIC_URL = os.getenv("PUBLIC_URL", "http://localhost:8003")
+PUBLIC_URL = os.getenv("PUBLIC_URL", "http://localhost:8003/t3/")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[PUBLIC_URL],
@@ -164,7 +164,7 @@ async def answer_question(request: ChatRequest):
 # Mount static files at root after all API routes
 frontend_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../frontend/out'))
 if os.path.isdir(frontend_path):
-    app.mount("/", StaticFiles(directory=frontend_path, html=True), name="frontend")
+    app.mount("/t3", StaticFiles(directory=frontend_path, html=True), name="frontend")
     print("Mounted frontend from:", frontend_path)
 
 # Load data files

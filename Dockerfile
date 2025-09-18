@@ -2,7 +2,7 @@
 FROM python:3.10-slim
 
 # Set public url environment variable
-ENV PUBLIC_URL=https://whitemount.sr.unh.edu
+ENV PUBLIC_URL=https://whitemount.sr.unh.edu/t3/
 
 # Install Node.js, npm, and build tools for Python packages
 RUN apt-get update && \
