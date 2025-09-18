@@ -1,8 +1,8 @@
-# Set public url environment variable
-ENV PUBLIC_URL=https://whitemount.sr.unh.edu
-
 # Use official Python image
 FROM python:3.10-slim
+
+# Set public url environment variable
+ENV PUBLIC_URL=https://whitemount.sr.unh.edu
 
 # Install Node.js, npm, and build tools for Python packages
 RUN apt-get update && \
