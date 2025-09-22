@@ -1,68 +1,44 @@
-# automation_testing/run_tests.py
-import csv
-import importlib
-import sys
+#!/usr/bin/env python3
+import sys, subprocess, json
 from pathlib import Path
 
-# --- Locate repo root (parent of automation_testing) and add to sys.path ---
-HERE = Path(__file__).resolve()
-ROOT = HERE.parent.parent            # .../Fall2025-Team-Goopy
-sys.path.insert(0, str(ROOT))
+ROOT   = Path(__file__).resolve().parents[1]
+PY     = sys.executable
+PRED   = ROOT / "automation_testing" / "predict.py"
+EVAL   = ROOT / "automation_testing" / "evaluator.py"
+GOLD   = ROOT / "automation_testing" / "gold.jsonl"
+REPORT = ROOT / "automation_testing" / "report.json"
 
-# --- Resolve CSV path (arg or default) ---
-DEFAULTS = [
-    ROOT / "automation_testing" / "tests.csv",
-    ROOT / "tests.csv",
-]
-CSV_PATH = Path(sys.argv[1]).resolve() if len(sys.argv) > 1 else next(
-    (p for p in DEFAULTS if p.exists()),
-    DEFAULTS[0]
-)
+def run(cmd):
+    print("→", " ".join(str(c) for c in cmd))
+    subprocess.check_call(cmd)
 
-print("Loading app…")
-app = importlib.import_module("main")  # imports ROOT/main.py
+def main():
+    if not GOLD.exists():
+        raise SystemExit(f"Missing gold file: {GOLD}")
+    if not PRED.exists():
+        raise SystemExit(f"Missing predictor: {PRED}")
+    if not EVAL.exists():
+        raise SystemExit(f"Missing evaluator: {EVAL}")
 
-# Build embeddings from JSON (assumes file lives at repo root)
-JSON_PATH = ROOT / "degree_requirements.json"
-app.load_json_file(str(JSON_PATH))
-JSON_PATH = ROOT / "course_descriptions.json"
-app.load_json_file(str(JSON_PATH))
+    try:
+        run([PY, str(PRED), "--offline"])
+    except subprocess.CalledProcessError:
+        run([PY, str(PRED)])
 
-def ask(q: str) -> str:
-    out = app.answer_question(q)
-    return (out or "").strip()
+  
+    run([PY, str(EVAL)])
 
-def passed(answer: str, any_of_bits):
-    ans_lower = answer.lower()
-    return any(bit.strip().lower() in ans_lower for bit in any_of_bits)
+    
+    if REPORT.exists():
+        try:
+            data = json.loads(REPORT.read_text())
+            print("\n=== Summary ===")
+            print(json.dumps(data.get("summary", data), indent=2))
+        except Exception as e:
+            print(f"(Could not read summary: {e})")
 
-total = 0
-ok = 0
-fail_rows = []
+    print("\n Done. Outputs: automation_testing/preds.jsonl and automation_testing/report.json")
 
-print(f"Running tests from: {CSV_PATH}\n")
-with open(CSV_PATH, newline="", encoding="utf-8") as f:
-    reader = csv.DictReader(f)
-    for row in reader:
-        total += 1
-        q = row["question"].strip()
-        bits = [b for b in row["expected_any_of"].split("|") if b.strip()]
-        a = ask(q)
-        is_ok = passed(a, bits)
-        status = "PASS" if is_ok else "FAIL"
-        if is_ok:
-            ok += 1
-        else:
-            fail_rows.append((q, a))
-        print(f"[{status}] {q}\n→ {a}\n")
-
-print("=" * 60)
-print(f"TOTAL: {ok}/{total} passed")
-
-# Non-zero exit code if any failures (useful for CI)
-if fail_rows:
-    print("\nFailed cases:")
-    for q, a in fail_rows:
-        print(f"- Q: {q}\n  A: {a}\n")
-    sys.exit(1)
-sys.exit(0)
+if __name__ == "__main__":
+    main()
