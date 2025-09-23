@@ -42,13 +42,32 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+import uvicorn
+from fastapi.staticfiles import StaticFiles
+import os
+
+# FastAPI backend app
+app = FastAPI()
+
+# Allow CORS for frontend
+PUBLIC_URL = os.getenv("PUBLIC_URL", "http://localhost:8003/")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[PUBLIC_URL],
+    allow_credentials=False,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 # for chunking text
 chunks_embeddings = None
 chunk_texts = []
 chunk_sources = []
 
 # paths
-BASE_DIR = Path(__file__).resolve().parent
+BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / "scraper"
 
 # embeddings model (local + small)
@@ -181,10 +200,9 @@ def _answer_question(question):
                 line += f" ({src['url']})"
             citation_lines.append(line)
 
-        citations = "\n".join(citation_lines)
-        return f"{answer}\n\nSources:\n{citations}"
+        return answer, citation_lines
     except Exception as e:
-        return f"ERROR running local model: {e}"
+        return f"ERROR running local model: {e}", []
 
 # cached wrapper for answers
 @lru_cache(maxsize=128)
@@ -199,16 +217,15 @@ class ChatRequest(BaseModel):
 # FastAPI response model
 class ChatResponse(BaseModel):
     answer: str
-    sources: list[dict] = []
+    sources: list[str] = []
 
-# --- CSV logging helper (added) ---
+# CSV logging helper
 def log_chat_to_csv(question, answer, sources):
     ts = datetime.utcnow().isoformat(timespec="seconds") + "Z"
     row = [ts, question, answer, json.dumps(sources, ensure_ascii=False)]
     with _LOG_LOCK:
         with open(CHAT_LOG_PATH, "a", newline="", encoding="utf-8") as f:
             csv.writer(f).writerow(row)
-# --- end helper ---
 
 # FastAPI chat endpoint
 @app.post("/chat", response_model=ChatResponse)
@@ -217,10 +234,7 @@ async def answer_question(request: ChatRequest):
     if isinstance(message, list):
         message = " ".join(message)
     answer, sources = cached_answer_tuple(message)
-
-    # --- log to CSV (added) ---
     log_chat_to_csv(message, answer, sources)
-
     return ChatResponse(answer=answer, sources=sources)
 
 # Mount static files at root after all API routes
@@ -229,26 +243,20 @@ if os.path.isdir(frontend_path):
     app.mount("/", StaticFiles(directory=frontend_path, html=True), name="frontend")
     print("Mounted frontend from:", frontend_path)
 
-
-# Load data files
-load_json_file("scraper/course_descriptions.json")
-load_json_file("scraper/degree_requirements.json")
-
+# Load scraped JSONs from the scraper/ folder
+filenames = [
+    "course_descriptions.json",
+    "degree_requirements.json",
+    "academic_standards.json",
+    "graduation.json",
+    "graduation_grading.json",
+]
+for name in filenames:
+    path = DATA_DIR / name
+    if path.exists():
+        load_json_file(str(path))
+    else:
+        print(f"WARNING: {path} not found, skipping.")
 
 if __name__ == "__main__":
-    # Load scraped JSONs from the scraper/ folder
-    filenames = [
-        "course_descriptions.json",
-        "degree_requirements.json",
-        "academic_standards.json",
-        "graduation.json",
-        "graduation_grading.json",
-    ]
-    for name in filenames:
-        path = DATA_DIR / name
-        if path.exists():
-            load_json_file(str(path))
-        else:
-            print(f"WARNING: {path} not found, skipping.")
-
-    demo.launch()
+    uvicorn.run("main:app", host="0.0.0.0", port=8003, reload=True)

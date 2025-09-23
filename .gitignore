@@ -8,3 +8,6 @@ __pycache__/
 .DS_Store/backend/.backend-venv/
 /.model_cache/
 **/__pycache__/
+
+# Chat logs
+backend/chat_logs.csv

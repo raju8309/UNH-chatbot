@@ -1,0 +1,31 @@
+/* Hide scrollbar utility */
+.scrollbar-hide::-webkit-scrollbar {
+	display: none;
+}
+.scrollbar-hide {
+	-ms-overflow-style: none;
+	scrollbar-width: none;
+}
+
+@import url('https://fonts.googleapis.com/css2?family=Source+Sans+Pro:wght@400;600;700&display=swap');
+@import "tailwindcss";
+
+html, body {
+	height: 100%;
+	overflow: hidden;
+}
+
+:root {
+	--unh-blue: #003591;
+	--unh-white: #FFFFFF;
+    --unh-accent-grey: #A3A9AC;
+    --unh-accent-tan: #D7D1C4;
+    --unh-accent-orange: #F77A05;
+    --unh-accent-blue: #263645;
+	--unh-light-gray: #f4f4f4;
+}
+
+body {
+	font-family: 'Source Sans Pro', Arial, sans-serif;
+}
+
