@@ -5,6 +5,8 @@ from pydantic import BaseModel
 
 import json
 from functools import lru_cache
+from text_fragments import build_text_fragment_url, choose_snippet, is_synthetic_label
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -44,6 +46,10 @@ app.add_middleware(
 chunks_embeddings = None
 chunk_texts = []
 chunk_sources = []
+
+# paths
+BASE_DIR = Path(__file__).resolve().parent
+DATA_DIR = BASE_DIR / "scraper"
 
 # embeddings model (local + small)
 embed_model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
@@ -121,6 +127,29 @@ def get_top_chunks(question, top_k=3):
     top_indices = scores.argsort()[-top_k:][::-1]
     return [(chunk_texts[i], chunk_sources[i]) for i in top_indices]
 
+def _wrap_sources_with_text_fragments(sources_with_passages, question: str):
+    """
+    Input: list of tuples (passage_text, source_dict)
+    Output: list of dicts like source_dict but with url replaced by a text-fragment URL
+    """
+    wrapped = []
+    for passage, src in sources_with_passages:
+        url = src.get("url", "")
+        # Some chunks are synthetic labels (e.g., "Courses: …"); don't build fragments for those
+        if not url or is_synthetic_label(passage):
+            wrapped.append({**src, "url": url})
+            continue
+
+        # Choose a compact snippet (tries to align to the question)
+        snippet = choose_snippet(passage, hint=question, max_chars=160)
+
+        if snippet:
+            frag_url = build_text_fragment_url(url, text=snippet)
+            wrapped.append({**src, "url": frag_url})
+        else:
+            wrapped.append({**src, "url": url})
+    return wrapped
+
 # core answer function (not cached directly)
 def _answer_question(question):
     top_chunks = get_top_chunks(question)
@@ -137,18 +166,25 @@ def _answer_question(question):
         result = qa_pipeline(prompt, max_new_tokens=128)  # limit tokens
         answer = result[0]["generated_text"].strip()
 
-        # build sources list
-        seen = set()
-        sources = []
-        for _, src in top_chunks:
-            key = (src["title"], src.get("url"))
-            if key not in seen:
-                seen.add(key)
-                sources.append({"title": src["title"], "url": src.get("url", "")})
+        # Build citation links WITH text fragments, one per unique (title,url)
+        enriched_sources = _wrap_sources_with_text_fragments(top_chunks, question)
 
-        return answer, sources
+        seen = set()
+        citation_lines = []
+        for src in enriched_sources:
+            key = (src.get("title"), src.get("url"))
+            if key in seen:
+                continue
+            seen.add(key)
+            line = f"- {src.get('title','Source')}"
+            if src.get("url"):
+                line += f" ({src['url']})"
+            citation_lines.append(line)
+
+        citations = "\n".join(citation_lines)
+        return f"{answer}\n\nSources:\n{citations}"
     except Exception as e:
-        return f"ERROR running local model: {e}", []
+        return f"ERROR running local model: {e}"
 
 # cached wrapper for answers
 @lru_cache(maxsize=128)
@@ -200,5 +236,19 @@ load_json_file("scraper/degree_requirements.json")
 
 
 if __name__ == "__main__":
-    # Run server
-    uvicorn.run("main:app", host="0.0.0.0", port=8003, reload=True)
+    # Load scraped JSONs from the scraper/ folder
+    filenames = [
+        "course_descriptions.json",
+        "degree_requirements.json",
+        "academic_standards.json",
+        "graduation.json",
+        "graduation_grading.json",
+    ]
+    for name in filenames:
+        path = DATA_DIR / name
+        if path.exists():
+            load_json_file(str(path))
+        else:
+            print(f"WARNING: {path} not found, skipping.")
+
+    demo.launch()
