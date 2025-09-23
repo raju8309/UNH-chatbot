@@ -1,11 +1,46 @@
-import gradio as gr
 import numpy as np
 from sentence_transformers import SentenceTransformer
 from transformers import pipeline
+from pydantic import BaseModel
+
 import json
 from functools import lru_cache
 from text_fragments import build_text_fragment_url, choose_snippet, is_synthetic_label
 from pathlib import Path
+
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+import uvicorn
+from fastapi.staticfiles import StaticFiles
+import os
+
+# --- CSV logging (added) ---
+import csv
+import threading
+from datetime import datetime
+
+CHAT_LOG_PATH = "chat_logs.csv"
+_LOG_LOCK = threading.Lock()
+
+# create file with header if not exists
+if not os.path.isfile(CHAT_LOG_PATH):
+    with open(CHAT_LOG_PATH, "w", newline="", encoding="utf-8") as f:
+        writer = csv.writer(f)
+        writer.writerow(["timestamp", "question", "answer", "sources_json"])
+# --- end CSV logging ---
+
+# FastAPI backend app
+app = FastAPI()
+
+# Allow CORS for frontend
+PUBLIC_URL = os.getenv("PUBLIC_URL", "http://localhost:8003/")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[PUBLIC_URL],
+    allow_credentials=False,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # for chunking text
 chunks_embeddings = None
@@ -81,7 +116,6 @@ def load_json_file(path):
     else:
         print(f"WARNING: no text found in {path}")
 
-
 # retrieval utilities
 def get_top_chunks(question, top_k=3):
     if chunks_embeddings is None or len(chunks_embeddings) == 0:
@@ -92,7 +126,6 @@ def get_top_chunks(question, top_k=3):
     )
     top_indices = scores.argsort()[-top_k:][::-1]
     return [(chunk_texts[i], chunk_sources[i]) for i in top_indices]
-
 
 def _wrap_sources_with_text_fragments(sources_with_passages, question: str):
     """
@@ -116,7 +149,6 @@ def _wrap_sources_with_text_fragments(sources_with_passages, question: str):
         else:
             wrapped.append({**src, "url": url})
     return wrapped
-
 
 # core answer function (not cached directly)
 def _answer_question(question):
@@ -154,54 +186,54 @@ def _answer_question(question):
     except Exception as e:
         return f"ERROR running local model: {e}"
 
-
-# cached wrapper to handle Gradio inputs safely
+# cached wrapper for answers
 @lru_cache(maxsize=128)
-def cached_answer_str(question_str):
+def cached_answer_tuple(question_str):
     return _answer_question(question_str)
 
+# FastAPI request model
+class ChatRequest(BaseModel):
+    message: str
+    history: list[str] = None
 
-def answer_question(message, history=None):
-    # message might be a list from Gradio, convert to string
+# FastAPI response model
+class ChatResponse(BaseModel):
+    answer: str
+    sources: list[dict] = []
+
+# --- CSV logging helper (added) ---
+def log_chat_to_csv(question, answer, sources):
+    ts = datetime.utcnow().isoformat(timespec="seconds") + "Z"
+    row = [ts, question, answer, json.dumps(sources, ensure_ascii=False)]
+    with _LOG_LOCK:
+        with open(CHAT_LOG_PATH, "a", newline="", encoding="utf-8") as f:
+            csv.writer(f).writerow(row)
+# --- end helper ---
+
+# FastAPI chat endpoint
+@app.post("/chat", response_model=ChatResponse)
+async def answer_question(request: ChatRequest):
+    message = request.message
     if isinstance(message, list):
         message = " ".join(message)
-    return cached_answer_str(message)
+    answer, sources = cached_answer_tuple(message)
+
+    # --- log to CSV (added) ---
+    log_chat_to_csv(message, answer, sources)
+
+    return ChatResponse(answer=answer, sources=sources)
+
+# Mount static files at root after all API routes
+frontend_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../frontend/out'))
+if os.path.isdir(frontend_path):
+    app.mount("/", StaticFiles(directory=frontend_path, html=True), name="frontend")
+    print("Mounted frontend from:", frontend_path)
 
 
-# UI elements
-unh_blue = "#003366"
-unh_white = "#FFFFFF"
+# Load data files
+load_json_file("scraper/course_descriptions.json")
+load_json_file("scraper/degree_requirements.json")
 
-with gr.Blocks(theme=gr.themes.Soft()) as demo:
-    # header
-    with gr.Row(elem_id="header"):
-        gr.HTML(
-            """
-            <div style="background-color: #003366; color: white; padding:20px; border-radius:8px; text-align:center;">
-                <h1>UNH Graduate Catalog Chatbot</h1>
-                <p>Ask questions about programs, courses, and policies from the UNH Graduate Catalog</p>
-            </div>
-            """
-        )
-
-    # chatbot
-    chatbot = gr.ChatInterface(
-        fn=answer_question,
-        type="messages",
-        title="",
-        description="",
-    )
-
-    # footer
-    with gr.Row(elem_id="footer"):
-        gr.Markdown(
-            """
-            <div style="text-align:center; padding:10px; font-size:14px; color:#555;">
-                <hr style="margin:10px 0;">
-                <p>Built for the <strong>University of New Hampshire</strong> Graduate Catalog project</p>
-            </div>
-            """
-        )
 
 if __name__ == "__main__":
     # Load scraped JSONs from the scraper/ folder
