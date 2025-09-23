@@ -42,6 +42,7 @@ The chatbot follows a simple retrieval-augmented generation (RAG) architecture:
 - Automated tests are conducted using `automation_testing/run_tests.py`. The script creates answers with `predict.py`, compares those against a created gold set `gold.jsonl` with `evaluator.py`, and finally outputs a report using BERTScore.
    - Sample question: *"What are the requirements for a Master's in Computer Science?"* returns a correct answer with citations and links.
 - The speed of responses can be analyzed with `automation_testing/test_times.py`, which outputs average repsonse times.
+- The most current generated report can viewed [here](https://github.com/UNHM-TEAM-PROJECT/Fall2025-Team-Goopy/blob/main/automation_testing/report.json).
  
 ## Setup & Usage
  
