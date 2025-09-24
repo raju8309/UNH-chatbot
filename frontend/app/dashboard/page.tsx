@@ -139,6 +139,221 @@ const RankingMetrics: React.FC<RankingMetricsProps> = ({ metrics }) => (
   </div>
 );
 
+interface ComparisonMetricCardProps {
+  title: string;
+  value1: number;
+  value2: number;
+  color: string;
+  subtitle: string;
+  isPercentage?: boolean;
+}
+
+const ComparisonMetricCard: React.FC<ComparisonMetricCardProps> = ({ 
+  title, value1, value2, color, subtitle, isPercentage = true 
+}) => {
+  const percentDiff = value2 === 0 ? (value1 === 0 ? 0 : 100) : ((value1 - value2) / Math.abs(value2)) * 100;
+  const formatValue = (val: number) => isPercentage ? (val * 100).toFixed(1) + '%' : val.toFixed(1);
+  
+  return (
+    <div className="bg-gray-50 rounded-lg shadow-sm p-4">
+      <h3 className="text-sm font-semibold text-gray-700 mb-2">{title}</h3>
+      <div className="flex items-center justify-between mb-2">
+        <div className="text-center flex-1">
+          <p className={`text-xl font-bold ${color}`}>{formatValue(value1)}</p>
+          <p className="text-xs text-gray-500">Test Run 1</p>
+        </div>
+        <div className="px-2">
+          <span className="text-gray-400">vs</span>
+        </div>
+        <div className="text-center flex-1">
+          <p className={`text-xl font-bold ${color}`}>{formatValue(value2)}</p>
+          <p className="text-xs text-gray-500">Test Run 2</p>
+        </div>
+      </div>
+      <div className="text-center border-t pt-2">
+        <p className={`text-sm font-medium ${
+          percentDiff > 0 ? 'text-green-600' : percentDiff < 0 ? 'text-red-600' : 'text-gray-600'
+        }`}>
+          {percentDiff > 0 ? '+' : ''}{percentDiff.toFixed(1)}% difference
+        </p>
+        <p className="text-xs text-gray-500 mt-1">{subtitle}</p>
+      </div>
+    </div>
+  );
+};
+
+interface ComparisonSummaryProps {
+  summary1: any;
+  summary2: any;
+}
+
+const ComparisonSummary: React.FC<ComparisonSummaryProps> = ({ summary1, summary2 }) => (
+  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+    <ComparisonMetricCard 
+      title="BERTscore F1" 
+      value1={summary1.bertscore_f1} 
+      value2={summary2.bertscore_f1}
+      color="text-blue-600" 
+      subtitle="Semantic similarity" 
+    />
+    <ComparisonMetricCard 
+      title="SBERT Cosine" 
+      value1={summary1.sbert_cosine} 
+      value2={summary2.sbert_cosine}
+      color="text-green-600" 
+      subtitle="Sentence similarity" 
+    />
+    <ComparisonMetricCard 
+      title="Recall@1" 
+      value1={summary1["recall@1"]} 
+      value2={summary2["recall@1"]}
+      color="text-purple-600" 
+      subtitle="Top result accuracy" 
+    />
+    <ComparisonMetricCard 
+      title="NDCG@3" 
+      value1={summary1["ndcg@3"]} 
+      value2={summary2["ndcg@3"]}
+      color="text-orange-600" 
+      subtitle="Ranking quality" 
+    />
+  </div>
+);
+
+interface ComparisonNuggetMetricsProps {
+  metrics1: any;
+  metrics2: any;
+}
+
+const ComparisonNuggetMetrics: React.FC<ComparisonNuggetMetricsProps> = ({ metrics1, metrics2 }) => {
+  const calculatePercentDiff = (val1: number, val2: number) => {
+    return val2 === 0 ? (val1 === 0 ? 0 : 100) : ((val1 - val2) / Math.abs(val2)) * 100;
+  };
+
+  return (
+    <div className="bg-gray-50 rounded-lg shadow-sm p-4 overflow-hidden">
+      <h5 className="text-lg font-bold text-gray-800 mb-4">Nugget Metrics</h5>
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <span className="text-sm font-medium text-gray-700 w-20">Precision</span>
+          <div className="flex items-center flex-1 justify-center gap-4">
+            <span className="text-lg font-bold text-green-600">{(metrics1.nugget_precision * 100).toFixed(1)}%</span>
+            <span className="text-xs text-gray-500">vs</span>
+            <span className="text-lg font-bold text-green-600">{(metrics2.nugget_precision * 100).toFixed(1)}%</span>
+          </div>
+          <span className={`text-sm font-medium w-20 text-right ${
+            calculatePercentDiff(metrics1.nugget_precision, metrics2.nugget_precision) > 0 
+              ? 'text-green-600' : calculatePercentDiff(metrics1.nugget_precision, metrics2.nugget_precision) < 0 
+              ? 'text-red-600' : 'text-gray-600'
+          }`}>
+            {calculatePercentDiff(metrics1.nugget_precision, metrics2.nugget_precision) > 0 ? '+' : ''}
+            {calculatePercentDiff(metrics1.nugget_precision, metrics2.nugget_precision).toFixed(1)}%
+          </span>
+        </div>
+        <div className="flex items-center justify-between">
+          <span className="text-sm font-medium text-gray-700 w-20">Recall</span>
+          <div className="flex items-center flex-1 justify-center gap-4">
+            <span className="text-lg font-bold text-red-600">{(metrics1.nugget_recall * 100).toFixed(1)}%</span>
+            <span className="text-xs text-gray-500">vs</span>
+            <span className="text-lg font-bold text-red-600">{(metrics2.nugget_recall * 100).toFixed(1)}%</span>
+          </div>
+          <span className={`text-sm font-medium w-20 text-right ${
+            calculatePercentDiff(metrics1.nugget_recall, metrics2.nugget_recall) > 0 
+              ? 'text-green-600' : calculatePercentDiff(metrics1.nugget_recall, metrics2.nugget_recall) < 0 
+              ? 'text-red-600' : 'text-gray-600'
+          }`}>
+            {calculatePercentDiff(metrics1.nugget_recall, metrics2.nugget_recall) > 0 ? '+' : ''}
+            {calculatePercentDiff(metrics1.nugget_recall, metrics2.nugget_recall).toFixed(1)}%
+          </span>
+        </div>
+        <div className="flex items-center justify-between">
+          <span className="text-sm font-medium text-gray-700 w-20">F1 Score</span>
+          <div className="flex items-center flex-1 justify-center gap-4">
+            <span className="text-lg font-bold text-blue-600">{(metrics1.nugget_f1 * 100).toFixed(1)}%</span>
+            <span className="text-xs text-gray-500">vs</span>
+            <span className="text-lg font-bold text-blue-600">{(metrics2.nugget_f1 * 100).toFixed(1)}%</span>
+          </div>
+          <span className={`text-sm font-medium w-20 text-right ${
+            calculatePercentDiff(metrics1.nugget_f1, metrics2.nugget_f1) > 0 
+              ? 'text-green-600' : calculatePercentDiff(metrics1.nugget_f1, metrics2.nugget_f1) < 0 
+              ? 'text-red-600' : 'text-gray-600'
+          }`}>
+            {calculatePercentDiff(metrics1.nugget_f1, metrics2.nugget_f1) > 0 ? '+' : ''}
+            {calculatePercentDiff(metrics1.nugget_f1, metrics2.nugget_f1).toFixed(1)}%
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+interface ComparisonRankingMetricsProps {
+  metrics1: any;
+  metrics2: any;
+}
+
+const ComparisonRankingMetrics: React.FC<ComparisonRankingMetricsProps> = ({ metrics1, metrics2 }) => {
+  const calculatePercentDiff = (val1: number, val2: number) => {
+    return val2 === 0 ? (val1 === 0 ? 0 : 100) : ((val1 - val2) / Math.abs(val2)) * 100;
+  };
+
+  return (
+    <div className="bg-gray-50 rounded-lg shadow-sm p-4 overflow-hidden">
+      <h5 className="text-lg font-bold text-gray-800 mb-4">Ranking Performance</h5>
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <span className="text-sm font-medium text-gray-700 w-20">Recall@3</span>
+          <div className="flex items-center flex-1 justify-center gap-4">
+            <span className="text-lg font-bold text-green-600">{(metrics1["recall@3"] * 100).toFixed(1)}%</span>
+            <span className="text-xs text-gray-500">vs</span>
+            <span className="text-lg font-bold text-green-600">{(metrics2["recall@3"] * 100).toFixed(1)}%</span>
+          </div>
+          <span className={`text-sm font-medium w-20 text-right ${
+            calculatePercentDiff(metrics1["recall@3"], metrics2["recall@3"]) > 0 
+              ? 'text-green-600' : calculatePercentDiff(metrics1["recall@3"], metrics2["recall@3"]) < 0 
+              ? 'text-red-600' : 'text-gray-600'
+          }`}>
+            {calculatePercentDiff(metrics1["recall@3"], metrics2["recall@3"]) > 0 ? '+' : ''}
+            {calculatePercentDiff(metrics1["recall@3"], metrics2["recall@3"]).toFixed(1)}%
+          </span>
+        </div>
+        <div className="flex items-center justify-between">
+          <span className="text-sm font-medium text-gray-700 w-20">Recall@5</span>
+          <div className="flex items-center flex-1 justify-center gap-4">
+            <span className="text-lg font-bold text-green-600">{(metrics1["recall@5"] * 100).toFixed(1)}%</span>
+            <span className="text-xs text-gray-500">vs</span>
+            <span className="text-lg font-bold text-green-600">{(metrics2["recall@5"] * 100).toFixed(1)}%</span>
+          </div>
+          <span className={`text-sm font-medium w-20 text-right ${
+            calculatePercentDiff(metrics1["recall@5"], metrics2["recall@5"]) > 0 
+              ? 'text-green-600' : calculatePercentDiff(metrics1["recall@5"], metrics2["recall@5"]) < 0 
+              ? 'text-red-600' : 'text-gray-600'
+          }`}>
+            {calculatePercentDiff(metrics1["recall@5"], metrics2["recall@5"]) > 0 ? '+' : ''}
+            {calculatePercentDiff(metrics1["recall@5"], metrics2["recall@5"]).toFixed(1)}%
+          </span>
+        </div>
+        <div className="flex items-center justify-between">
+          <span className="text-sm font-medium text-gray-700 w-20">NDCG@5</span>
+          <div className="flex items-center flex-1 justify-center gap-4">
+            <span className="text-lg font-bold text-purple-600">{(metrics1["ndcg@5"] * 100).toFixed(1)}%</span>
+            <span className="text-xs text-gray-500">vs</span>
+            <span className="text-lg font-bold text-purple-600">{(metrics2["ndcg@5"] * 100).toFixed(1)}%</span>
+          </div>
+          <span className={`text-sm font-medium w-20 text-right ${
+            calculatePercentDiff(metrics1["ndcg@5"], metrics2["ndcg@5"]) > 0 
+              ? 'text-green-600' : calculatePercentDiff(metrics1["ndcg@5"], metrics2["ndcg@5"]) < 0 
+              ? 'text-red-600' : 'text-gray-600'
+          }`}>
+            {calculatePercentDiff(metrics1["ndcg@5"], metrics2["ndcg@5"]) > 0 ? '+' : ''}
+            {calculatePercentDiff(metrics1["ndcg@5"], metrics2["ndcg@5"]).toFixed(1)}%
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 export default function TestResultsPage() {
   const [testData, setTestData] = useState<any>(null);
   const [selectedCategory, setSelectedCategory] = useState('all');
@@ -147,6 +362,11 @@ export default function TestResultsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isRunningTest, setIsRunningTest] = useState(false);
+  
+  // Comparison state
+  const [isCompareMode, setIsCompareMode] = useState(false);
+  const [selectedReports, setSelectedReports] = useState<any[]>([]);
+  const [showComparison, setShowComparison] = useState(false);
 
   useEffect(() => {
     // Load test results data
@@ -171,6 +391,30 @@ export default function TestResultsPage() {
 
     loadData();
   }, []);
+
+  // Comparison handler functions
+  const handleToggleCompareMode = () => {
+    setIsCompareMode(!isCompareMode);
+    setSelectedReports([]);
+  };
+
+  const handleSelectForComparison = (report: any) => {
+    setSelectedReports(prev => {
+      const isSelected = prev.some(r => r.run_id === report.run_id);
+      if (isSelected) {
+        return prev.filter(r => r.run_id !== report.run_id);
+      } else if (prev.length < 2) {
+        return [...prev, report];
+      }
+      return prev;
+    });
+  };
+
+  const handleCompare = () => {
+    if (selectedReports.length === 2) {
+      setShowComparison(true);
+    }
+  };
 
   const handleRunNewTest = async () => {
     setIsRunningTest(true);
@@ -266,6 +510,26 @@ export default function TestResultsPage() {
             </div>
           </div>
           <div className="flex items-center space-x-4">
+            {isCompareMode && selectedReports.length === 2 && (
+              <button
+                onClick={handleCompare}
+                className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors font-medium"
+              >
+                Compare Selected
+              </button>
+            )}
+            
+            <button
+              onClick={handleToggleCompareMode}
+              className={`px-4 py-2 rounded-lg transition-colors font-medium ${
+                isCompareMode 
+                  ? 'bg-red-600 text-white hover:bg-red-700' 
+                  : 'bg-gray-300 text-gray-700 hover:bg-gray-400'
+              }`}
+            >
+              {isCompareMode ? 'Cancel Compare' : 'Compare Mode'}
+            </button>
+            
             {isRunningTest ? (
               <div className="flex items-center">
                 <div className="animate-spin rounded-full h-6 w-6 border-2 border-white border-t-transparent mr-3"></div>
@@ -287,91 +551,115 @@ export default function TestResultsPage() {
         {/* Reports Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-8">
           {testData.test_runs && testData.test_runs.length > 0 ? (
-            testData.test_runs.map((testRun: any, index: number) => (
-              <div key={testRun.run_id} className="bg-white rounded-lg shadow-lg border border-gray-200 overflow-hidden">
-                {/* Report Card Header */}
-                <div className="bg-[var(--unh-blue)] text-white p-6">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <h2 className="text-xl font-bold mb-1">
-                        Test Run #{testData.test_runs.length - index}{' '}
-                        <span className="text-gray-300 font-normal">{testRun.run_id}</span>
-                      </h2>
-                      <p className="text-blue-100 text-xs mt-1">
-                        {formatRunIdDate(testRun.run_id)}
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-2xl font-bold">
-                        {(testRun.summary.bertscore_f1 * 100).toFixed(1)}%
+            testData.test_runs.map((testRun: any, index: number) => {
+              const isSelected = selectedReports.some(r => r.run_id === testRun.run_id);
+              
+              return (
+                <div 
+                  key={testRun.run_id} 
+                  className={`bg-white rounded-lg shadow-lg border overflow-hidden transition-all ${
+                    isCompareMode && isSelected 
+                      ? 'border-blue-500 ring-2 ring-blue-200' 
+                      : 'border-gray-200'
+                  }`}
+                >
+                  {/* Report Card Header */}
+                  <div className="bg-[var(--unh-blue)] text-white p-6 relative">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <h2 className="text-xl font-bold mb-1">
+                          Test Run #{testData.test_runs.length - index}{' '}
+                          <span className="text-gray-300 font-normal">{testRun.run_id}</span>
+                        </h2>
+                        <p className="text-blue-100 text-xs mt-1">
+                          {formatRunIdDate(testRun.run_id)}
+                        </p>
                       </div>
-                      <div className="text-blue-100 text-xs">BERTScore F1</div>
+                      <div className="text-right">
+                        <div className="text-2xl font-bold">
+                          {(testRun.summary.bertscore_f1 * 100).toFixed(1)}%
+                        </div>
+                        <div className="text-blue-100 text-xs">BERTScore F1</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Report Summary Metrics */}
+                  <div className="p-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                      <MetricCard 
+                        title="SBERT Cosine" 
+                        value={testRun.summary.sbert_cosine} 
+                        color="text-green-600" 
+                        subtitle="Sentence similarity" 
+                      />
+                      <MetricCard 
+                        title="Recall@1" 
+                        value={testRun.summary["recall@1"]} 
+                        color="text-purple-600" 
+                        subtitle="Top result accuracy" 
+                      />
+                      <MetricCard 
+                        title="NDCG@3" 
+                        value={testRun.summary["ndcg@3"]} 
+                        color="text-orange-600" 
+                        subtitle="Ranking quality" 
+                      />
+                      <MetricCard 
+                        title="Nugget F1" 
+                        value={testRun.summary.nugget_f1} 
+                        color="text-red-600" 
+                        subtitle="Nugget precision & recall" 
+                      />
+                    </div>
+
+                    {/* Quick Stats */}
+                    <div className="border-t border-gray-200 pt-4">
+                      <div className="flex justify-between text-sm text-gray-600 mb-2">
+                        <span>Questions Tested:</span>
+                        <span className="font-medium">{testRun.total_questions}</span>
+                      </div>
+                      {testRun.predictions_data && (
+                        <div className="flex justify-between text-sm text-gray-600 mb-4">
+                          <span>Categories:</span>
+                          <span className="font-medium">
+                            {Object.keys(testRun.predictions_data.categories).length}
+                          </span>
+                        </div>
+                      )}
+                      
+                      {/* Action Buttons */}
+                      <div className="flex gap-2">
+                        {isCompareMode ? (
+                          <button 
+                            onClick={() => handleSelectForComparison(testRun)}
+                            disabled={!isSelected && selectedReports.length >= 2}
+                            className={`flex-1 px-4 py-2 rounded-lg transition-colors text-sm font-medium ${
+                              isSelected
+                                ? 'bg-red-500 text-white hover:bg-red-600'
+                                : selectedReports.length >= 2
+                                ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                : 'bg-[var(--unh-blue)] text-white hover:bg-[var(--unh-accent-blue)]'
+                            }`}
+                          >
+                            {isSelected ? 'Deselect' : 'Select for Compare'}
+                          </button>
+                        ) : (
+                          <button 
+                            onClick={() => {
+                              setSelectedReport(testRun);
+                            }}
+                            className="flex-1 bg-[var(--unh-blue)] text-white px-4 py-2 rounded-lg hover:bg-[var(--unh-accent-blue)] transition-colors text-sm font-medium"
+                          >
+                            View Details
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
-
-                {/* Report Summary Metrics */}
-                <div className="p-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                    <MetricCard 
-                      title="SBERT Cosine" 
-                      value={testRun.summary.sbert_cosine} 
-                      color="text-green-600" 
-                      subtitle="Sentence similarity" 
-                    />
-                    <MetricCard 
-                      title="Recall@1" 
-                      value={testRun.summary["recall@1"]} 
-                      color="text-purple-600" 
-                      subtitle="Top result accuracy" 
-                    />
-                    <MetricCard 
-                      title="NDCG@3" 
-                      value={testRun.summary["ndcg@3"]} 
-                      color="text-orange-600" 
-                      subtitle="Ranking quality" 
-                    />
-                    <MetricCard 
-                      title="Nugget F1" 
-                      value={testRun.summary.nugget_f1} 
-                      color="text-red-600" 
-                      subtitle="Nugget precision & recall" 
-                    />
-                  </div>
-
-                  {/* Quick Stats */}
-                  <div className="border-t border-gray-200 pt-4">
-                    <div className="flex justify-between text-sm text-gray-600 mb-2">
-                      <span>Questions Tested:</span>
-                      <span className="font-medium">{testRun.total_questions}</span>
-                    </div>
-                    {testRun.predictions_data && (
-                      <div className="flex justify-between text-sm text-gray-600 mb-4">
-                        <span>Categories:</span>
-                        <span className="font-medium">
-                          {Object.keys(testRun.predictions_data.categories).length}
-                        </span>
-                      </div>
-                    )}
-                    
-                    {/* Action Buttons */}
-                    <div className="flex gap-2">
-                      <button 
-                        onClick={() => {
-                          setSelectedReport(testRun);
-                        }}
-                        className="flex-1 bg-[var(--unh-blue)] text-white px-4 py-2 rounded-lg hover:bg-[var(--unh-accent-blue)] transition-colors text-sm font-medium"
-                      >
-                        View Details
-                      </button>
-                      <button className="flex-1 bg-gray-100 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-200 transition-colors text-sm font-medium">
-                        Compare
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))
+              );
+            })
           ) : (
             <div className="col-span-full text-center py-12">
               <div className="text-gray-500 text-lg mb-4">No test runs found</div>
@@ -379,6 +667,234 @@ export default function TestResultsPage() {
             </div>
           )}
         </div>
+
+        {/* Comparison Modal */}
+        {showComparison && selectedReports.length === 2 && (
+          <div className="fixed inset-0 bg-gray-800 bg-opacity-75 flex items-center justify-center p-4 z-50">
+            <div className="bg-white rounded-lg max-w-6xl max-h-[90vh] overflow-hidden w-full">
+              <div className="max-h-[90vh] overflow-y-auto">
+                <div className="sticky top-0 bg-[var(--unh-blue)] border-b border-blue-600 p-6 z-20">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <h2 className="text-2xl font-bold text-white mb-2">
+                        Test Run Comparison
+                      </h2>
+                      <div className="flex gap-4 text-blue-100 text-sm">
+                        <span>Test Run 1: {selectedReports[0].run_id} ({formatRunIdDate(selectedReports[0].run_id)})</span>
+                        <span>vs</span>
+                        <span>Test Run 2: {selectedReports[1].run_id} ({formatRunIdDate(selectedReports[1].run_id)})</span>
+                      </div>
+                    </div>
+                    <button 
+                      onClick={() => setShowComparison(false)}
+                      className="text-blue-200 hover:text-white text-2xl font-bold"
+                    >
+                      ×
+                    </button>
+                  </div>
+                </div>
+              
+                <div className="p-6">
+                  {/* Comparison Summary Cards */}
+                  <ComparisonSummary 
+                    summary1={selectedReports[0].summary} 
+                    summary2={selectedReports[1].summary} 
+                  />
+
+                  {/* Detailed Summary Metrics with Circular Progress */}
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8 relative z-10">
+                    <ComparisonNuggetMetrics 
+                      metrics1={selectedReports[0].summary} 
+                      metrics2={selectedReports[1].summary} 
+                    />
+                    <ComparisonRankingMetrics 
+                      metrics1={selectedReports[0].summary} 
+                      metrics2={selectedReports[1].summary} 
+                    />
+                  </div>
+
+                  {/* Predictions Section */}
+                  {selectedReports[0]?.predictions_data && selectedReports[1]?.predictions_data && (
+                    <div>
+                      {/* Filters */}
+                      <div className="bg-gray-50 rounded-lg p-4 mb-6">
+                        <div className="flex flex-col md:flex-row gap-4">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">Filter by Category:</label>
+                            <select 
+                              value={selectedCategory}
+                              onChange={(e) => setSelectedCategory(e.target.value)}
+                              className="border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-[var(--unh-blue)] focus:border-transparent"
+                            >
+                              <option value="all">All Categories</option>
+                              <option value="AS">Academic Standards (AS)</option>
+                              <option value="DR">Degree Requirements (DR)</option>
+                              <option value="GR">Grading (GR)</option>
+                              <option value="GA">Graduation (GA)</option>
+                            </select>
+                          </div>
+                          <div className="flex-1">
+                            <label className="block text-sm font-medium text-gray-700 mb-2">Search Questions:</label>
+                            <input
+                              type="text"
+                              placeholder="Search in questions or answers..."
+                              value={searchTerm}
+                              onChange={(e) => setSearchTerm(e.target.value)}
+                              className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-[var(--unh-blue)] focus:border-transparent"
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Predictions Comparison List */}
+                      <div className="space-y-6">
+                        {selectedReports[0].predictions_data?.predictions 
+                            ?.filter((pred: any) => {
+                              const matchesCategory = selectedCategory === 'all' || pred.category === selectedCategory;
+                              const matchesSearch = searchTerm === '' || 
+                                pred.query.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                pred.model_answer.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                pred.reference_answer.toLowerCase().includes(searchTerm.toLowerCase());
+                              return matchesCategory && matchesSearch;
+                            })
+                            .map((pred1: any, index: number) => {
+                              // Find corresponding prediction in second report
+                              const pred2 = selectedReports[1].predictions_data?.predictions?.find((p: any) => p.id === pred1.id);
+                              if (!pred2) return null;
+                              
+                              return (
+                                <div key={pred1.id} className="border border-gray-200 rounded-lg p-6">
+                                  <div className="flex justify-between items-start mb-4">
+                                    <div className="flex items-center gap-3">
+                                      <span className={`px-2 py-1 rounded text-sm font-bold ${getCategoryBadgeClasses(pred1.category)}`}>
+                                        {pred1.id}
+                                      </span>
+                                      <span className="text-sm text-gray-500">#{index + 1}</span>
+                                    </div>
+                                    <a 
+                                      href={pred1.url} 
+                                      target="_blank" 
+                                      rel="noopener noreferrer"
+                                      className="text-[var(--unh-blue)] hover:underline text-sm"
+                                    >
+                                      View Source
+                                    </a>
+                                  </div>
+                                  
+                                  <div className="mb-4">
+                                    <h3 className="font-semibold text-lg text-gray-800 mb-2">Question:</h3>
+                                    <p className="text-gray-700">{pred1.query}</p>
+                                  </div>
+
+                                  <div className="grid md:grid-cols-2 gap-6 mb-6">
+                                    <div>
+                                      <h4 className="font-semibold text-gray-800 mb-2">Test Run 1 - Model Answer:</h4>
+                                      <div className="bg-blue-50 border-l-4 border-blue-400 p-4 rounded">
+                                        <p className="text-gray-800">{pred1.model_answer}</p>
+                                      </div>
+                                    </div>
+                                    
+                                    <div>
+                                      <h4 className="font-semibold text-gray-800 mb-2">Test Run 2 - Model Answer:</h4>
+                                      <div className="bg-blue-50 border-l-4 border-blue-400 p-4 rounded">
+                                        <p className="text-gray-800">{pred2.model_answer}</p>
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  <div className="mb-4">
+                                    <h4 className="font-semibold text-gray-800 mb-2">Reference Answer:</h4>
+                                    <div className="bg-green-50 border-l-4 border-green-400 p-4 rounded">
+                                      <p className="text-gray-800">{pred1.reference_answer}</p>
+                                    </div>
+                                  </div>
+
+                                  <div className="grid md:grid-cols-2 gap-6 mb-4">
+                                    <div>
+                                      <h4 className="font-semibold text-gray-800 mb-2">Test Run 1 - Retrieved Documents:</h4>
+                                      <div className="flex flex-wrap gap-2">
+                                        {pred1.retrieved_ids.map((docId: string, idx: number) => (
+                                          <span key={idx} className="bg-gray-100 text-gray-700 px-2 py-1 rounded text-sm">
+                                            {docId}
+                                          </span>
+                                        ))}
+                                      </div>
+                                    </div>
+
+                                    <div>
+                                      <h4 className="font-semibold text-gray-800 mb-2">Test Run 2 - Retrieved Documents:</h4>
+                                      <div className="flex flex-wrap gap-2">
+                                        {pred2.retrieved_ids.map((docId: string, idx: number) => (
+                                          <span key={idx} className="bg-gray-100 text-gray-700 px-2 py-1 rounded text-sm">
+                                            {docId}
+                                          </span>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  {(pred1.nuggets && pred1.nuggets.length > 0) || (pred2.nuggets && pred2.nuggets.length > 0) && (
+                                    <div className="grid md:grid-cols-2 gap-6 mb-6">
+                                      <div>
+                                        <h4 className="font-semibold text-gray-800 mb-2">Test Run 1 - Key Points:</h4>
+                                        {pred1.nuggets && pred1.nuggets.length > 0 ? (
+                                          <ul className="list-disc list-inside text-sm text-gray-700">
+                                            {pred1.nuggets.map((nugget: string, idx: number) => (
+                                              <li key={idx}>{nugget}</li>
+                                            ))}
+                                          </ul>
+                                        ) : (
+                                          <p className="text-sm text-gray-500 italic">No key points identified</p>
+                                        )}
+                                      </div>
+                                      
+                                      <div>
+                                        <h4 className="font-semibold text-gray-800 mb-2">Test Run 2 - Key Points:</h4>
+                                        {pred2.nuggets && pred2.nuggets.length > 0 ? (
+                                          <ul className="list-disc list-inside text-sm text-gray-700">
+                                            {pred2.nuggets.map((nugget: string, idx: number) => (
+                                              <li key={idx}>{nugget}</li>
+                                            ))}
+                                          </ul>
+                                        ) : (
+                                          <p className="text-sm text-gray-500 italic">No key points identified</p>
+                                        )}
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  {/* Individual Question Metrics Comparison */}
+                                  {pred1.metrics && pred2.metrics && (
+                                    <div className="mt-6">
+                                      <h4 className="font-semibold text-gray-800 mb-4">Individual Question Metrics Comparison</h4>
+                                      
+                                      <ComparisonSummary summary1={pred1.metrics} summary2={pred2.metrics} />
+
+                                      {/* Detailed Metrics Comparison */}
+                                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 relative z-10">
+                                        <ComparisonNuggetMetrics metrics1={pred1.metrics} metrics2={pred2.metrics} />
+                                        <ComparisonRankingMetrics metrics1={pred1.metrics} metrics2={pred2.metrics} />
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })
+                            .filter(Boolean)}
+                        {!selectedReports[0].predictions_data?.predictions && (
+                          <div className="text-center py-8 text-gray-500">
+                            <p>No detailed predictions available for comparison.</p>
+                            <p className="text-sm mt-2">Only summary metrics are available.</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Selected Report Detail Modal */}
         {selectedReport && (
@@ -544,8 +1060,8 @@ export default function TestResultsPage() {
                         </div>
                       )}
                     </div>
-                    </div>
-                  )}
+                  </div>
+                )}
                 </div>
               </div>
             </div>
