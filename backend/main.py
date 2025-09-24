@@ -227,6 +227,11 @@ def log_chat_to_csv(question, answer, sources):
         with open(CHAT_LOG_PATH, "a", newline="", encoding="utf-8") as f:
             csv.writer(f).writerow(row)
 
+# FastAPI reset chat endpoint
+@app.post("/reset")
+async def reset_chat():
+    pass
+
 # FastAPI chat endpoint
 @app.post("/chat", response_model=ChatResponse)
 async def answer_question(request: ChatRequest):

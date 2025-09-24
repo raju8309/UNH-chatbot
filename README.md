@@ -72,7 +72,7 @@ python3 main.py
 
 **Run Containerized (Optional)**
 ```bash
-docker system prune -a --volumes
+docker system prune -a --volumes # Free space before building (optional)
 docker build -t goopy-app .
 docker run -p 8003:8003 --name goopy-app -e PUBLIC_URL=http://localhost:8003/ goopy-app
 ```
@@ -85,4 +85,11 @@ cd Fall2025-Team-Goopy
 docker system prune -a --volumes
 docker build -t goopy-app .
 docker run -d -p 8003:8003 --name goopy-app goopy-app
+```
+
+### Debug UI
+```bash
+cd frontend
+npm run dev
+# Connect to localhost:3000 in your browser
 ```
