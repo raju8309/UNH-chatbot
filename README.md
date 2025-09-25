@@ -40,13 +40,13 @@ The chatbot follows a simple retrieval-augmented generation (RAG) architecture:
 
 ## Testing
  
-Automated tests are conducted using `automation_testing/run_tests.py`. The script creates a timestamp directory in the `reports` folder. The gold set is copied to each of these folders so that the master gold set can be continuously, safely updated.
+Automated tests are conducted using `automation_testing/run_tests.py`. The script creates a timestamp directory in the `reports` folder. The gold set is copied to each of these folders so that the master gold set can be continuously, safely updated. The current gold set is present in the `automation_testing` directory.
 
 Answer predictions are generated with `predict.py`, they're compared against the gold set `gold.jsonl` with `evaluator.py`, and finally a BERTscore report is output. The speed of responses can be analyzed with `automation_testing/test_times.py`, which outputs average repsonse times.
 
 ### Test Dashboard
 
-A dashboard UI is available for quikcly running, interpreting, and comparing test results and chat logs. To view it, simply follow the below steps to run the progam and then visit the ```/dashboard``` page in your browser. For example, ```localhost:8003/dashboard```.
+A dashboard UI is available for quikcly running, interpreting, and comparing test results and chat logs. To view/use it, simply follow the below steps to run the progam and then visit the ```/dashboard``` page in your browser. For example, ```localhost:8003/dashboard```.
 
 ## Setup & Usage
  
