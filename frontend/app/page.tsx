@@ -129,7 +129,7 @@ export default function Home() {
                             <ul className="list-disc list-inside text-sm text-gray-700">
                               {msg.sources.map((src, idx) => {
                                 // Parse format: "- Title (url)" or "- Title"
-                                const match = src.match(/^-\s*(.+?)(?:\s*\((.+?)\))?$/);
+                                const match = src.match(/^-\s*(.+)\s*\(([^)]+)\)$/);
                                 if (match) {
                                   const title = match[1];
                                   const url = match[2];
