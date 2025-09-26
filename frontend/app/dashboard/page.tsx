@@ -192,12 +192,19 @@ interface ComparisonMetricCardProps {
   color: string;
   subtitle: string;
   isPercentage?: boolean;
+  runNumber1?: number;
+  runNumber2?: number;
 }
 
 const ComparisonMetricCard: React.FC<ComparisonMetricCardProps> = ({ 
-  title, value1, value2, color, subtitle, isPercentage = true 
+  title, value1, value2, color, subtitle, isPercentage = true, runNumber1, runNumber2 
 }) => {
-  const percentDiff = value2 === 0 ? (value1 === 0 ? 0 : 100) : ((value1 - value2) / Math.abs(value2)) * 100;
+  // Convert to display values first if percentage
+  const displayValue1 = isPercentage ? value1 * 100 : value1;
+  const displayValue2 = isPercentage ? value2 * 100 : value2;
+  
+  // Calculate absolute difference (Run 2 - Run 1)
+  const absoluteDiff = displayValue2 - displayValue1;
   const formatValue = (val: number) => isPercentage ? (val * 100).toFixed(1) + '%' : val.toFixed(1);
   
   return (
@@ -206,21 +213,21 @@ const ComparisonMetricCard: React.FC<ComparisonMetricCardProps> = ({
       <div className="flex items-center justify-between mb-2">
         <div className="text-center flex-1">
           <p className={`text-xl font-bold ${color}`}>{formatValue(value1)}</p>
-          <p className="text-xs text-gray-500">Test Run 1</p>
+          <p className="text-xs text-gray-500">Test Run #{runNumber1 || 1}</p>
         </div>
         <div className="px-2">
           <span className="text-gray-400">vs</span>
         </div>
         <div className="text-center flex-1">
           <p className={`text-xl font-bold ${color}`}>{formatValue(value2)}</p>
-          <p className="text-xs text-gray-500">Test Run 2</p>
+          <p className="text-xs text-gray-500">Test Run #{runNumber2 || 2}</p>
         </div>
       </div>
       <div className="text-center border-t pt-2">
         <p className={`text-sm font-medium ${
-          percentDiff > 0 ? 'text-green-600' : percentDiff < 0 ? 'text-red-600' : 'text-gray-600'
+          absoluteDiff > 0 ? 'text-green-600' : absoluteDiff < 0 ? 'text-red-600' : 'text-gray-600'
         }`}>
-          {percentDiff > 0 ? '+' : ''}{percentDiff.toFixed(1)}% difference
+          {absoluteDiff > 0 ? '+' : ''}{absoluteDiff.toFixed(1)}%
         </p>
         <p className="text-xs text-gray-500 mt-1">{subtitle}</p>
       </div>
@@ -231,9 +238,11 @@ const ComparisonMetricCard: React.FC<ComparisonMetricCardProps> = ({
 interface ComparisonSummaryProps {
   summary1: any;
   summary2: any;
+  runNumber1?: number;
+  runNumber2?: number;
 }
 
-const ComparisonSummary: React.FC<ComparisonSummaryProps> = ({ summary1, summary2 }) => (
+const ComparisonSummary: React.FC<ComparisonSummaryProps> = ({ summary1, summary2, runNumber1, runNumber2 }) => (
   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
     <ComparisonMetricCard 
       title="BERTscore F1" 
@@ -241,6 +250,8 @@ const ComparisonSummary: React.FC<ComparisonSummaryProps> = ({ summary1, summary
       value2={summary2.bertscore_f1}
       color="text-blue-600" 
       subtitle="Semantic similarity" 
+      runNumber1={runNumber1}
+      runNumber2={runNumber2}
     />
     <ComparisonMetricCard 
       title="SBERT Cosine" 
@@ -248,6 +259,8 @@ const ComparisonSummary: React.FC<ComparisonSummaryProps> = ({ summary1, summary
       value2={summary2.sbert_cosine}
       color="text-green-600" 
       subtitle="Sentence similarity" 
+      runNumber1={runNumber1}
+      runNumber2={runNumber2}
     />
     <ComparisonMetricCard 
       title="Recall@1" 
@@ -255,6 +268,8 @@ const ComparisonSummary: React.FC<ComparisonSummaryProps> = ({ summary1, summary
       value2={summary2["recall@1"]}
       color="text-purple-600" 
       subtitle="Top result accuracy" 
+      runNumber1={runNumber1}
+      runNumber2={runNumber2}
     />
     <ComparisonMetricCard 
       title="NDCG@3" 
@@ -262,6 +277,8 @@ const ComparisonSummary: React.FC<ComparisonSummaryProps> = ({ summary1, summary
       value2={summary2["ndcg@3"]}
       color="text-orange-600" 
       subtitle="Ranking quality" 
+      runNumber1={runNumber1}
+      runNumber2={runNumber2}
     />
   </div>
 );
@@ -273,7 +290,10 @@ interface ComparisonNuggetMetricsProps {
 
 const ComparisonNuggetMetrics: React.FC<ComparisonNuggetMetricsProps> = ({ metrics1, metrics2 }) => {
   const calculatePercentDiff = (val1: number, val2: number) => {
-    return val2 === 0 ? (val1 === 0 ? 0 : 100) : ((val1 - val2) / Math.abs(val2)) * 100;
+    // Convert to display values (percentages) and calculate absolute difference (Run 2 - Run 1)
+    const displayVal1 = val1 * 100;
+    const displayVal2 = val2 * 100;
+    return displayVal2 - displayVal1;
   };
 
   return (
@@ -340,7 +360,10 @@ interface ComparisonRankingMetricsProps {
 
 const ComparisonRankingMetrics: React.FC<ComparisonRankingMetricsProps> = ({ metrics1, metrics2 }) => {
   const calculatePercentDiff = (val1: number, val2: number) => {
-    return val2 === 0 ? (val1 === 0 ? 0 : 100) : ((val1 - val2) / Math.abs(val2)) * 100;
+    // Convert to display values (percentages) and calculate absolute difference (Run 2 - Run 1)
+    const displayVal1 = val1 * 100;
+    const displayVal2 = val2 * 100;
+    return displayVal2 - displayVal1;
   };
 
   return (
@@ -780,7 +803,9 @@ export default function TestResultsPage() {
                   {/* Comparison Summary Cards */}
                   <ComparisonSummary 
                     summary1={selectedReports[0].summary} 
-                    summary2={selectedReports[1].summary} 
+                    summary2={selectedReports[1].summary}
+                    runNumber1={testData?.test_runs ? getTestRunDisplayNumber(testData.test_runs, selectedReports[0].run_id) : 1}
+                    runNumber2={testData?.test_runs ? getTestRunDisplayNumber(testData.test_runs, selectedReports[1].run_id) : 2}
                   />
 
                   {/* Detailed Summary Metrics with Circular Progress */}
@@ -872,14 +897,14 @@ export default function TestResultsPage() {
 
                                   <div className="grid md:grid-cols-2 gap-6 mb-6">
                                     <div>
-                                      <h4 className="font-semibold text-gray-800 mb-2">Test Run 1 - Model Answer:</h4>
+                                      <h4 className="font-semibold text-gray-800 mb-2">Test Run #{testData?.test_runs ? getTestRunDisplayNumber(testData.test_runs, selectedReports[0].run_id) : 1} - Model Answer:</h4>
                                       <div className="bg-blue-50 border-l-4 border-blue-400 p-4 rounded">
                                         <p className="text-gray-800">{pred1.model_answer}</p>
                                       </div>
                                     </div>
                                     
                                     <div>
-                                      <h4 className="font-semibold text-gray-800 mb-2">Test Run 2 - Model Answer:</h4>
+                                      <h4 className="font-semibold text-gray-800 mb-2">Test Run #{testData?.test_runs ? getTestRunDisplayNumber(testData.test_runs, selectedReports[1].run_id) : 2} - Model Answer:</h4>
                                       <div className="bg-blue-50 border-l-4 border-blue-400 p-4 rounded">
                                         <p className="text-gray-800">{pred2.model_answer}</p>
                                       </div>
@@ -895,7 +920,7 @@ export default function TestResultsPage() {
 
                                   <div className="grid md:grid-cols-2 gap-6 mb-4">
                                     <div>
-                                      <h4 className="font-semibold text-gray-800 mb-2">Test Run 1 - Retrieved Documents:</h4>
+                                      <h4 className="font-semibold text-gray-800 mb-2">Test Run #{testData?.test_runs ? getTestRunDisplayNumber(testData.test_runs, selectedReports[0].run_id) : 1} - Retrieved Documents:</h4>
                                       <div className="flex flex-wrap gap-2">
                                         {pred1.retrieved_ids.map((docId: string, idx: number) => (
                                           <span key={idx} className="bg-gray-100 text-gray-700 px-2 py-1 rounded text-sm">
@@ -906,7 +931,7 @@ export default function TestResultsPage() {
                                     </div>
 
                                     <div>
-                                      <h4 className="font-semibold text-gray-800 mb-2">Test Run 2 - Retrieved Documents:</h4>
+                                      <h4 className="font-semibold text-gray-800 mb-2">Test Run #{testData?.test_runs ? getTestRunDisplayNumber(testData.test_runs, selectedReports[1].run_id) : 2} - Retrieved Documents:</h4>
                                       <div className="flex flex-wrap gap-2">
                                         {pred2.retrieved_ids.map((docId: string, idx: number) => (
                                           <span key={idx} className="bg-gray-100 text-gray-700 px-2 py-1 rounded text-sm">
@@ -920,7 +945,7 @@ export default function TestResultsPage() {
                                   {(pred1.nuggets && pred1.nuggets.length > 0) || (pred2.nuggets && pred2.nuggets.length > 0) && (
                                     <div className="grid md:grid-cols-2 gap-6 mb-6">
                                       <div>
-                                        <h4 className="font-semibold text-gray-800 mb-2">Test Run 1 - Key Points:</h4>
+                                        <h4 className="font-semibold text-gray-800 mb-2">Test Run #{testData?.test_runs ? getTestRunDisplayNumber(testData.test_runs, selectedReports[0].run_id) : 1} - Key Points:</h4>
                                         {pred1.nuggets && pred1.nuggets.length > 0 ? (
                                           <ul className="list-disc list-inside text-sm text-gray-700">
                                             {pred1.nuggets.map((nugget: string, idx: number) => (
@@ -933,7 +958,7 @@ export default function TestResultsPage() {
                                       </div>
                                       
                                       <div>
-                                        <h4 className="font-semibold text-gray-800 mb-2">Test Run 2 - Key Points:</h4>
+                                        <h4 className="font-semibold text-gray-800 mb-2">Test Run #{testData?.test_runs ? getTestRunDisplayNumber(testData.test_runs, selectedReports[1].run_id) : 2} - Key Points:</h4>
                                         {pred2.nuggets && pred2.nuggets.length > 0 ? (
                                           <ul className="list-disc list-inside text-sm text-gray-700">
                                             {pred2.nuggets.map((nugget: string, idx: number) => (
@@ -952,7 +977,12 @@ export default function TestResultsPage() {
                                     <div className="mt-6">
                                       <h4 className="font-semibold text-gray-800 mb-4">Individual Question Metrics Comparison</h4>
                                       
-                                      <ComparisonSummary summary1={pred1.metrics} summary2={pred2.metrics} />
+                                      <ComparisonSummary 
+                                        summary1={pred1.metrics} 
+                                        summary2={pred2.metrics}
+                                        runNumber1={testData?.test_runs ? getTestRunDisplayNumber(testData.test_runs, selectedReports[0].run_id) : 1}
+                                        runNumber2={testData?.test_runs ? getTestRunDisplayNumber(testData.test_runs, selectedReports[1].run_id) : 2}
+                                      />
 
                                       {/* Detailed Metrics Comparison */}
                                       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 relative z-10">
