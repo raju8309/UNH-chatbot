@@ -1,51 +1,59 @@
 import requests
 from bs4 import BeautifulSoup
 import json
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlparse
 import openpyxl
 
+# config
 BASE_URL = "https://catalog.unh.edu"
 SITEMAP_FILE = "graduate_catalog.xlsx"
 OUTPUT_FILE = "unh_catalog.json"
+ALLOWED_DOMAIN = "catalog.unh.edu"
+TAB_IDS = ["#overviewtext", "#requirementstext", "#coursetext"]
 
-# helper functions
+# helpers
 def clean_text(tag):
     return tag.get_text(" ", strip=True)
 
-def heading_level(name):
-    if not name:
-        return 0
-    name = name.lower()
-    if name in ("h2", "h3", "h4"):
-        return int(name[1])
+def heading_level(tag_name):
+    if tag_name and tag_name.lower() in ("h2", "h3", "h4"):
+        return int(tag_name[1])
     return 0
 
-def push_section(level, section_title, stack):
+def push_section(level, section_title, stack, page_url):
     while stack and stack[-1][0] >= level:
         stack.pop()
     parent = stack[-1][1]
-    new_node = {"type": "section", "title": section_title, "content": []}
+    new_node = {"type": "section", "title": section_title, "content": [], "page_url": page_url}
     parent["content"].append(new_node)
     stack.append((level, new_node))
 
-def add_paragraph(tag, stack, URL):
+def add_paragraph(tag, stack, page_url):
     _, current = stack[-1]
-    item = {"type": "text", "text": clean_text(tag)}
+    text = clean_text(tag)
+    if not text:  # skip empty
+        return
+    item = {"type": "text", "text": text}
+    # Only include links within allowed domain
     links = [
-        {"label": clean_text(a), "url": urljoin(URL, a["href"].strip())}
+        {"label": clean_text(a), "url": urljoin(page_url, a["href"].strip())}
         for a in tag.find_all("a", href=True)
+        if ALLOWED_DOMAIN in urljoin(page_url, a["href"].strip())
     ]
     if links:
         item["links"] = links
     current["content"].append(item)
 
-def add_list(tag, stack, URL):
+def add_list(tag, stack, page_url):
     _, current = stack[-1]
-    items = [clean_text(li) for li in tag.find_all("li", recursive=False)]
+    items = [clean_text(li) for li in tag.find_all("li", recursive=False) if clean_text(li)]
+    if not items:
+        return
     item = {"type": "list", "items": items}
     links = [
-        {"label": clean_text(a), "url": urljoin(URL, a["href"].strip())}
+        {"label": clean_text(a), "url": urljoin(page_url, a["href"].strip())}
         for a in tag.find_all("a", href=True)
+        if ALLOWED_DOMAIN in urljoin(page_url, a["href"].strip())
     ]
     if links:
         item["links"] = links
@@ -53,6 +61,7 @@ def add_list(tag, stack, URL):
 
 def normalize(section_node):
     title = section_node["title"]
+    page_url = section_node.get("page_url", "")
     text_blocks, list_blocks, link_bucket, children = [], [], [], []
     for item in section_node["content"]:
         if item["type"] == "text":
@@ -65,7 +74,7 @@ def normalize(section_node):
                 link_bucket.extend(item["links"])
         elif item["type"] == "section":
             children.append(normalize(item))
-    out = {"title": title}
+    out = {"title": title, "page_url": page_url}
     if text_blocks:
         out["text"] = text_blocks
     if list_blocks:
@@ -76,15 +85,23 @@ def normalize(section_node):
         out["subsections"] = children
     return out
 
-# load the sitemap
+def fetch_and_parse(url):
+    try:
+        resp = requests.get(url, timeout=30)
+        resp.raise_for_status()
+        return BeautifulSoup(resp.text, "lxml")
+    except Exception as e:
+        print(f"[error] could not download {url}: {e}")
+        return None
+
+# load sitemap
 wb = openpyxl.load_workbook(SITEMAP_FILE)
 sheet = wb.active
 rows = list(sheet.iter_rows(min_row=2, values_only=True))  # skip header
 
-all_pages_data = []
+merged = {"type": "root", "sections": []}
 
 for row in rows:
-    # build full hierarchy from all non-empty columns except last
     titles = [str(c).strip() for c in row[:-1] if c]
     relative_url = str(row[-1]).strip()
     if not relative_url:
@@ -94,47 +111,54 @@ for row in rows:
     URL = urljoin(BASE_URL, relative_url)
     print(f"[info] fetching page: {URL} ({full_title})")
 
-    try:
-        resp = requests.get(URL, timeout=30)
-        html = resp.text
-    except Exception as e:
-        print(f"[error] could not download {URL}: {e}")
+    soup = fetch_and_parse(URL)
+    if not soup:
         continue
 
-    soup = BeautifulSoup(html, "lxml")
+    # determine main content container
     main = soup.find("main") or soup.find("article") or soup.find("div", id="content") or soup
     flow = main.select("h2, h3, h4, p, ul, ol")
 
     root = {"type": "root", "content": []}
     stack = [(1, root)]
-    toc = []
 
+    # parse main page content
     for el in flow:
         lvl = heading_level(el.name)
         if lvl:
             heading_title = clean_text(el)
-            if lvl == 2:
-                toc.append(heading_title)
-            push_section(lvl, heading_title, stack)
+            push_section(lvl, heading_title, stack, URL)
         else:
             if el.name == "p":
                 add_paragraph(el, stack, URL)
             elif el.name in ("ul", "ol"):
                 add_list(el, stack, URL)
 
+    # fetch program/course tabs
+    if "programs-study" in URL:
+        for tab_id in TAB_IDS:
+            tab_url = URL + tab_id
+            tab_soup = fetch_and_parse(tab_url)
+            if not tab_soup:
+                continue
+            tab_main = tab_soup.find("main") or tab_soup.find("article") or tab_soup.find("div", id="content") or tab_soup
+            tab_flow = tab_main.select("h2, h3, h4, p, ul, ol")
+            for el in tab_flow:
+                lvl = heading_level(el.name)
+                if lvl:
+                    heading_title = clean_text(el)
+                    push_section(lvl, heading_title, stack, tab_url)
+                else:
+                    if el.name == "p":
+                        add_paragraph(el, stack, tab_url)
+                    elif el.name in ("ul", "ol"):
+                        add_list(el, stack, tab_url)
+
     sections = [normalize(n) for n in root["content"] if n.get("type") == "section"]
+    merged["sections"].extend(sections)
 
-    page_data = {
-        "page_title": full_title or clean_text(soup.find("h1")) or URL,
-        "url": URL,
-        "toc": toc,
-        "sections": sections
-    }
-
-    all_pages_data.append(page_data)
-
-# write all pages to JSON to feed to main
+# merge seperate files into one for simplicity and formatting in testing and main
 with open(OUTPUT_FILE, "w", encoding="utf-8") as f:
-    json.dump(all_pages_data, f, indent=2, ensure_ascii=False)
+    json.dump(merged, f, indent=2, ensure_ascii=False)
 
-print(f"[done] wrote {len(all_pages_data)} pages to {OUTPUT_FILE}")
+print(f"[done] wrote merged catalog to {OUTPUT_FILE}")
