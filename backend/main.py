@@ -87,7 +87,7 @@ def load_json_file(path):
                 new_texts.append(t)
                 new_sources.append({
                     "title": full_title,
-                    "url": data.get("url", "")
+                    "url": sec.get("page_url", "")
                 })
 
             # add links (label + URL)
@@ -232,11 +232,7 @@ if os.path.isdir(frontend_path):
 
 # Load scraped JSONs from the scraper/ folder
 filenames = [
-    "course_descriptions.json",
-    "degree_requirements.json",
-    "academic_standards.json",
-    "graduation.json",
-    "graduation_grading.json",
+    "unh_catalog.json",
 ]
 for name in filenames:
     path = DATA_DIR / name
