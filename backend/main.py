@@ -3,6 +3,7 @@ from sentence_transformers import SentenceTransformer
 from transformers import pipeline
 from pydantic import BaseModel
 
+import re
 import json
 from functools import lru_cache
 from text_fragments import build_text_fragment_url, choose_snippet, is_synthetic_label
@@ -13,19 +14,17 @@ from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 from fastapi.staticfiles import StaticFiles
 import os
-
-# Import dashboard router
-from dashboard import router as dashboard_router
-
-# --- CSV logging (added) ---
+import pickle
 import csv
 import threading
 from datetime import datetime
 
+# Import dashboard router
+from dashboard import router as dashboard_router
+
+# --- CSV logging ---
 CHAT_LOG_PATH = "chat_logs.csv"
 _LOG_LOCK = threading.Lock()
-
-# create file with header if not exists
 if not os.path.isfile(CHAT_LOG_PATH):
     with open(CHAT_LOG_PATH, "w", newline="", encoding="utf-8") as f:
         writer = csv.writer(f)
@@ -34,8 +33,6 @@ if not os.path.isfile(CHAT_LOG_PATH):
 
 # FastAPI backend app
 app = FastAPI()
-
-# Include dashboard router
 app.include_router(dashboard_router)
 
 # Allow CORS for frontend
@@ -48,27 +45,53 @@ app.add_middleware(
     allow_headers=["*"]
 )
 
-# for chunking text
+# Global variables
 chunks_embeddings = None
 chunk_texts = []
 chunk_sources = []
 
-# paths
+# Paths
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / "scraper"
+CACHE_PATH = DATA_DIR / "chunks_cache.pkl"
 
-# embeddings model (local + small)
+# Embeddings model
 embed_model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
 
-# load local Flan-T5 Small for queries
+# QA pipeline
 qa_pipeline = pipeline(
     "text2text-generation",
     model="google/flan-t5-small",
-    device=-1,  # CPU currently better performance on GPU (0)
+    device=-1,
 )
 
+# cache helpers
+def save_chunks_cache():
+    global chunk_texts, chunk_sources, chunks_embeddings
+    with open(CACHE_PATH, "wb") as f:
+        pickle.dump({
+            "texts": chunk_texts,
+            "sources": chunk_sources,
+            "embeddings": chunks_embeddings
+        }, f)
+    print(f"saved {len(chunk_texts)} chunks to cache")
+
+# load cache for improved startup speed
+def load_chunks_cache():
+    global chunk_texts, chunk_sources, chunks_embeddings
+    if CACHE_PATH.exists():
+        with open(CACHE_PATH, "rb") as f:
+            data = pickle.load(f)
+        chunk_texts = data["texts"]
+        chunk_sources = data["sources"]
+        chunks_embeddings = data["embeddings"]
+        print(f"Loaded {len(chunk_texts)} chunks from cache.")
+        return True
+    return False
+
+# --- JSON loader ---
 def load_json_file(path):
-    """Load a JSON file into global embeddings/texts/sources."""
+    """Load JSON and append chunks and embeddings."""
     global chunks_embeddings, chunk_texts, chunk_sources
 
     with open(path, "r", encoding="utf-8") as f:
@@ -82,7 +105,6 @@ def load_json_file(path):
             title = sec.get("title", "")
             full_title = f"{parent_title} > {title}" if parent_title else title
 
-            # add plain text
             for t in sec.get("text", []):
                 new_texts.append(t)
                 new_sources.append({
@@ -90,7 +112,6 @@ def load_json_file(path):
                     "url": sec.get("page_url", "")
                 })
 
-            # add links (label + URL)
             for link in sec.get("links", []):
                 label = link.get("label")
                 url = link.get("url")
@@ -106,23 +127,19 @@ def load_json_file(path):
 
     recurse_sections(data.get("sections", []))
 
-    # append new chunks to existing ones
     if new_texts:
+        new_embeds = embed_model.encode(new_texts, convert_to_numpy=True)
         if chunks_embeddings is None:
-            chunks_embeddings = embed_model.encode(new_texts, convert_to_numpy=True)
-            chunk_texts.extend(new_texts)
-            chunk_sources.extend(new_sources)
+            chunks_embeddings = new_embeds
         else:
-            new_embeds = embed_model.encode(new_texts, convert_to_numpy=True)
             chunks_embeddings = np.vstack([chunks_embeddings, new_embeds])
-            chunk_texts.extend(new_texts)
-            chunk_sources.extend(new_sources)
-
+        chunk_texts.extend(new_texts)
+        chunk_sources.extend(new_sources)
         print(f"Loaded {len(new_texts)} chunks from {path}")
     else:
         print(f"WARNING: no text found in {path}")
 
-# retrieval utilities
+# --- Retrieval ---
 def get_top_chunks(question, top_k=3):
     if chunks_embeddings is None or len(chunks_embeddings) == 0:
         return []
@@ -134,21 +151,13 @@ def get_top_chunks(question, top_k=3):
     return [(chunk_texts[i], chunk_sources[i]) for i in top_indices]
 
 def _wrap_sources_with_text_fragments(sources_with_passages, question: str):
-    """
-    Input: list of tuples (passage_text, source_dict)
-    Output: list of dicts like source_dict but with url replaced by a text-fragment URL
-    """
     wrapped = []
     for passage, src in sources_with_passages:
         url = src.get("url", "")
-        # Some chunks are synthetic labels (e.g., "Courses: …"); don't build fragments for those
         if not url or is_synthetic_label(passage):
             wrapped.append({**src, "url": url})
             continue
-
-        # Choose a compact snippet (tries to align to the question)
         snippet = choose_snippet(passage, hint=question, max_chars=160)
-
         if snippet:
             frag_url = build_text_fragment_url(url, text=snippet)
             wrapped.append({**src, "url": frag_url})
@@ -191,22 +200,21 @@ def _answer_question(question):
     except Exception as e:
         return f"ERROR running local model: {e}", []
 
-# cached wrapper for answers
+# --- Cached wrapper ---
 @lru_cache(maxsize=128)
 def cached_answer_tuple(question_str):
     return _answer_question(question_str)
 
-# FastAPI request model
+# --- FastAPI models ---
 class ChatRequest(BaseModel):
     message: str
     history: list[str] = None
 
-# FastAPI response model
 class ChatResponse(BaseModel):
     answer: str
     sources: list[str] = []
 
-# CSV logging helper
+# --- CSV logging ---
 def log_chat_to_csv(question, answer, sources):
     ts = datetime.utcnow().isoformat(timespec="seconds") + "Z"
     row = [ts, question, answer, json.dumps(sources, ensure_ascii=False)]
@@ -214,12 +222,11 @@ def log_chat_to_csv(question, answer, sources):
         with open(CHAT_LOG_PATH, "a", newline="", encoding="utf-8") as f:
             csv.writer(f).writerow(row)
 
-# FastAPI reset chat endpoint
+# --- FastAPI endpoints ---
 @app.post("/reset")
 async def reset_chat():
     pass
 
-# FastAPI chat endpoint
 @app.post("/chat", response_model=ChatResponse)
 async def answer_question(request: ChatRequest):
     message = request.message
@@ -229,22 +236,22 @@ async def answer_question(request: ChatRequest):
     log_chat_to_csv(message, answer, sources)
     return ChatResponse(answer=answer, sources=sources)
 
-# Mount static files at root after all API routes
+# --- Mount frontend ---
 frontend_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../frontend/out'))
 if os.path.isdir(frontend_path):
     app.mount("/", StaticFiles(directory=frontend_path, html=True), name="frontend")
     print("Mounted frontend from:", frontend_path)
 
-# Load scraped JSONs from the scraper/ folder
-filenames = [
-    "unh_catalog.json",
-]
-for name in filenames:
-    path = DATA_DIR / name
-    if path.exists():
-        load_json_file(str(path))
-    else:
-        print(f"WARNING: {path} not found, skipping.")
+# load cache or json
+if not load_chunks_cache():
+    filenames = ["unh_catalog.json"]
+    for name in filenames:
+        path = DATA_DIR / name
+        if path.exists():
+            load_json_file(str(path))
+        else:
+            print(f"WARNING: {path} not found, skipping.")
+    save_chunks_cache()  # save for next startup
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=8003, reload=True)
