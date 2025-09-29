@@ -165,49 +165,25 @@ def _wrap_sources_with_text_fragments(sources_with_passages, question: str):
             wrapped.append({**src, "url": url})
     return wrapped
 
-# --- Answer ---
+# core answer function (not cached directly)
 def _answer_question(question):
     top_chunks = get_top_chunks(question)
     context = " ".join([text for text, _ in top_chunks])
 
+    prompt = (
+        "Answer the question ONLY using the provided context. "
+        "If the answer cannot be found, say you don't know. "
+        "If the context does not mention the degree, say you don't know.\n\n"
+        f"Context:\n{context}\n\nQuestion: {question}\nAnswer:"
+    )
+
     try:
-        # Short answer
-        short_prompt = (
-            "Answer the question using ONLY the provided context. "
-            "Provide a short, factual answer first (like a number, date, or 'Yes/No'). "
-            "If the answer cannot be found in the context, say you don't know.\n\n"
-            f"Context:\n{context}\n\nQuestion: {question}\nAnswer:"
-        )
-        short_result = qa_pipeline(short_prompt, max_new_tokens=32)
-        short_answer = short_result[0]["generated_text"].strip()
+        result = qa_pipeline(prompt, max_new_tokens=128)  # limit tokens
+        answer = result[0]["generated_text"].strip()
 
-        # Long answer
-        long_prompt = (
-            "Provide a brief, natural, and informative explanation in 2–3 complete sentences. "
-            "Use ONLY the provided context.\n\n"
-            f"Context:\n{context}\n\nQuestion: {question}\nAnswer:"
-        )
-        long_result = qa_pipeline(long_prompt, max_new_tokens=128)
-        long_answer = long_result[0]["generated_text"].strip()
-
-        # Combine answers
-        if short_answer and long_answer:
-            if long_answer.lower().startswith(short_answer):
-                answer = long_answer
-            else:
-                answer = f"{short_answer}. {long_answer}"
-        else:
-            answer = short_answer or long_answer
-
-        # Limit to 3 sentences
-        def shorten_to_sentences(text, max_sentences=3):
-            sentences = re.split(r'(?<=[.!?]) +', text)
-            return " ".join(sentences[:max_sentences]).strip()
-
-        answer = shorten_to_sentences(answer, max_sentences=3)
-
-        # Build citations
+        # Build citation links WITH text fragments, one per unique (title,url)
         enriched_sources = _wrap_sources_with_text_fragments(top_chunks, question)
+
         seen = set()
         citation_lines = []
         for src in enriched_sources:
@@ -221,7 +197,6 @@ def _answer_question(question):
             citation_lines.append(line)
 
         return answer, citation_lines
-
     except Exception as e:
         return f"ERROR running local model: {e}", []
 
