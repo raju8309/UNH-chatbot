@@ -3,6 +3,7 @@ from sentence_transformers import SentenceTransformer
 from transformers import pipeline
 from pydantic import BaseModel
 
+import re
 import json
 from functools import lru_cache
 from text_fragments import build_text_fragment_url, choose_snippet, is_synthetic_label
@@ -15,41 +16,68 @@ import uvicorn
 from fastapi.staticfiles import StaticFiles
 import os
 
-# Import dashboard router
-from dashboard import router as dashboard_router
-
-# CSV logging
+import pickle
 import csv
 import threading
 from datetime import datetime
 
+# Import dashboard router
+from dashboard import router as dashboard_router
+
+# --- CSV logging ---
 CHAT_LOG_PATH = "chat_logs.csv"
 _LOG_LOCK = threading.Lock()
 
 # FastAPI backend app
 app = FastAPI()
 
-# for chunking text
+# Global variables
 chunks_embeddings = None
 chunk_texts = []
 chunk_sources = []
 
-# paths
+# Paths
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / "scraper"
+CACHE_PATH = DATA_DIR / "chunks_cache.pkl"
 
-# embeddings model (local + small)
+# Embeddings model
 embed_model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
 
-# load local Flan-T5 Small for queries
+# QA pipeline
 qa_pipeline = pipeline(
     "text2text-generation",
     model="google/flan-t5-small",
-    device=-1, 
+    device=-1
 )
 
+# cache helpers
+def save_chunks_cache():
+    global chunk_texts, chunk_sources, chunks_embeddings
+    with open(CACHE_PATH, "wb") as f:
+        pickle.dump({
+            "texts": chunk_texts,
+            "sources": chunk_sources,
+            "embeddings": chunks_embeddings
+        }, f)
+    print(f"saved {len(chunk_texts)} chunks to cache")
+
+# load cache for improved startup speed
+def load_chunks_cache():
+    global chunk_texts, chunk_sources, chunks_embeddings
+    if CACHE_PATH.exists():
+        with open(CACHE_PATH, "rb") as f:
+            data = pickle.load(f)
+        chunk_texts = data["texts"]
+        chunk_sources = data["sources"]
+        chunks_embeddings = data["embeddings"]
+        print(f"Loaded {len(chunk_texts)} chunks from cache.")
+        return True
+    return False
+
+# --- JSON loader ---
 def load_json_file(path):
-    """Load a JSON file into global embeddings/texts/sources."""
+    """Load JSON and append chunks and embeddings."""
     global chunks_embeddings, chunk_texts, chunk_sources
 
     with open(path, "r", encoding="utf-8") as f:
@@ -85,18 +113,14 @@ def load_json_file(path):
 
     recurse_sections(data.get("sections", []))
 
-    # append new chunks to existing ones
     if new_texts:
+        new_embeds = embed_model.encode(new_texts, convert_to_numpy=True)
         if chunks_embeddings is None:
-            chunks_embeddings = embed_model.encode(new_texts, convert_to_numpy=True)
-            chunk_texts.extend(new_texts)
-            chunk_sources.extend(new_sources)
+            chunks_embeddings = new_embeds
         else:
-            new_embeds = embed_model.encode(new_texts, convert_to_numpy=True)
             chunks_embeddings = np.vstack([chunks_embeddings, new_embeds])
-            chunk_texts.extend(new_texts)
-            chunk_sources.extend(new_sources)
-
+        chunk_texts.extend(new_texts)
+        chunk_sources.extend(new_sources)
         print(f"Loaded {len(new_texts)} chunks from {path}")
     else:
         print(f"WARNING: no text found in {path}")
@@ -120,20 +144,13 @@ def get_top_chunks(question, top_k=3):
     return [(chunk_texts[i], chunk_sources[i]) for i in top_indices]
 
 def _wrap_sources_with_text_fragments(sources_with_passages, question: str):
-    """
-    Input: list of tuples (passage_text, source_dict)
-    Output: list of dicts like source_dict but with url replaced by a text-fragment URL
-    """
     wrapped = []
     for passage, src in sources_with_passages:
         url = src.get("url", "")
         if not url or is_synthetic_label(passage):
             wrapped.append({**src, "url": url})
             continue
-
-        # Choose a compact snippet (tries to align to the question)
         snippet = choose_snippet(passage, hint=question, max_chars=160)
-
         if snippet:
             frag_url = build_text_fragment_url(url, text=snippet)
             wrapped.append({**src, "url": frag_url})
@@ -141,24 +158,49 @@ def _wrap_sources_with_text_fragments(sources_with_passages, question: str):
             wrapped.append({**src, "url": url})
     return wrapped
 
+# --- Answer ---
 def _answer_question(question):
     top_chunks = get_top_chunks(question)
     context = " ".join([text for text, _ in top_chunks])
 
-    prompt = (
-        "Answer the question ONLY using the provided context. "
-        "If the answer cannot be found, say you don't know. "
-        "If the context does not mention the degree, say you don't know.\n\n"
-        f"Context:\n{context}\n\nQuestion: {question}\nAnswer:"
-    )
-
     try:
-        result = qa_pipeline(prompt, max_new_tokens=128)  # limit tokens
-        answer = result[0]["generated_text"].strip()
+        # Short answer
+        short_prompt = (
+            "Answer the question using ONLY the provided context. "
+            "Provide a short, factual answer first (like a number, date, or 'Yes/No'). "
+            "If the answer cannot be found in the context, say you don't know.\n\n"
+            f"Context:\n{context}\n\nQuestion: {question}\nAnswer:"
+        )
+        short_result = qa_pipeline(short_prompt, max_new_tokens=32)
+        short_answer = short_result[0]["generated_text"].strip()
 
-        # Build citation links WITH text fragments, one per unique (title,url)
+        # Long answer
+        long_prompt = (
+            "Provide a brief, natural, and informative explanation in 2–3 complete sentences. "
+            "Use ONLY the provided context.\n\n"
+            f"Context:\n{context}\n\nQuestion: {question}\nAnswer:"
+        )
+        long_result = qa_pipeline(long_prompt, max_new_tokens=128)
+        long_answer = long_result[0]["generated_text"].strip()
+
+        # Combine answers
+        if short_answer and long_answer:
+            if long_answer.lower().startswith(short_answer):
+                answer = long_answer
+            else:
+                answer = f"{short_answer}. {long_answer}"
+        else:
+            answer = short_answer or long_answer
+
+        # Limit to 3 sentences
+        def shorten_to_sentences(text, max_sentences=3):
+            sentences = re.split(r'(?<=[.!?]) +', text)
+            return " ".join(sentences[:max_sentences]).strip()
+
+        answer = shorten_to_sentences(answer, max_sentences=3)
+
+        # Build citations
         enriched_sources = _wrap_sources_with_text_fragments(top_chunks, question)
-
         seen = set()
         citation_lines = []
         for src in enriched_sources:
@@ -172,10 +214,11 @@ def _answer_question(question):
             citation_lines.append(line)
 
         return answer, citation_lines
+
     except Exception as e:
         return f"ERROR running local model: {e}", []
 
-# cached wrapper for answers
+# --- Cached wrapper ---
 @lru_cache(maxsize=128)
 def cached_answer_tuple(question_str):
     return _answer_question(question_str)
@@ -233,17 +276,16 @@ def answer_with_sources(question: str, top_k: int = 3):
 
     return answer, sources_list, retrieved_ids
 
-# FastAPI request model
+# --- FastAPI models ---
 class ChatRequest(BaseModel):
     message: str
     history: list[str] = None
 
-# FastAPI response model
 class ChatResponse(BaseModel):
     answer: str
     sources: list[str] = []
 
-# CSV logging helper
+# --- CSV logging ---
 def log_chat_to_csv(question, answer, sources):
     ts = datetime.utcnow().isoformat(timespec="seconds") + "Z"
     row = [ts, question, answer, json.dumps(sources, ensure_ascii=False)]
@@ -251,12 +293,11 @@ def log_chat_to_csv(question, answer, sources):
         with open(CHAT_LOG_PATH, "a", newline="", encoding="utf-8") as f:
             csv.writer(f).writerow(row)
 
-# FastAPI reset chat endpoint
+# --- FastAPI endpoints ---
 @app.post("/reset")
 async def reset_chat():
     pass
 
-# FastAPI chat endpoint
 @app.post("/chat", response_model=ChatResponse)
 async def answer_question(request: ChatRequest):
     message = request.message
