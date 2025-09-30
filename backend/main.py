@@ -7,7 +7,7 @@ import json
 from functools import lru_cache
 from text_fragments import build_text_fragment_url, choose_snippet, is_synthetic_label
 from pathlib import Path
-from urllib.parse import urlparse  # <-- added
+from urllib.parse import urlparse
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -26,27 +26,8 @@ from datetime import datetime
 CHAT_LOG_PATH = "chat_logs.csv"
 _LOG_LOCK = threading.Lock()
 
-# create file with header if not exists
-if not os.path.isfile(CHAT_LOG_PATH):
-    with open(CHAT_LOG_PATH, "w", newline="", encoding="utf-8") as f:
-        writer = csv.writer(f)
-        writer.writerow(["timestamp", "question", "answer", "sources_json"])--
-
 # FastAPI backend app
 app = FastAPI()
-
-# Include dashboard router
-app.include_router(dashboard_router)
-
-# Allow CORS for frontend
-PUBLIC_URL = os.getenv("PUBLIC_URL", "http://localhost:8003/")
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[PUBLIC_URL],
-    allow_credentials=False,
-    allow_methods=["*"],
-    allow_headers=["*"]
-)
 
 # for chunking text
 chunks_embeddings = None
@@ -120,7 +101,7 @@ def load_json_file(path):
     else:
         print(f"WARNING: no text found in {path}")
 
-def build_index_from_json(path: str):
+def load_catalog(path: str):
     p = Path(path)
     if p.exists():
         load_json_file(str(p))
@@ -285,23 +266,29 @@ async def answer_question(request: ChatRequest):
     log_chat_to_csv(message, answer, sources)
     return ChatResponse(answer=answer, sources=sources)
 
-# Mount static files at root after all API routes
-frontend_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../frontend/out'))
-if os.path.isdir(frontend_path):
-    app.mount("/", StaticFiles(directory=frontend_path, html=True), name="frontend")
-    print("Mounted frontend from:", frontend_path)
-
-# Load scraped JSONs from the scraper/ folder
-filenames = [
-    "unh_catalog.json",
-]
-for name in filenames:
-    path = DATA_DIR / name
-    if path.exists():
-        load_json_file(str(path))
-    else:
-        print(f"WARNING: {path} not found, skipping.")
-
-# Only run the server when not in test mode
-if __name__ == "__main__" and os.getenv("RUN_API", "1") == "1":
-    uvicorn.run("main:app", host="0.0.0.0", port=8003, reload=True)
+if __name__ == "__main__":
+    # Load catalog
+    load_catalog(DATA_DIR / "unh_catalog.json")
+    # create file with header if not exists
+    if not os.path.isfile(CHAT_LOG_PATH):
+        with open(CHAT_LOG_PATH, "w", newline="", encoding="utf-8") as f:
+            writer = csv.writer(f)
+            writer.writerow(["timestamp", "question", "answer", "sources_json"])
+    # Include dashboard router
+    app.include_router(dashboard_router)
+    # Allow CORS for frontend
+    PUBLIC_URL = os.getenv("PUBLIC_URL", "http://localhost:8003/")
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=[PUBLIC_URL],
+        allow_credentials=False,
+        allow_methods=["*"],
+        allow_headers=["*"]
+    )
+    # Mount static files at root after all API routes
+    frontend_path = f"{BASE_DIR}/frontend/out"
+    if os.path.isdir(frontend_path):
+        app.mount("/", StaticFiles(directory=frontend_path, html=True), name="frontend")
+        print("Mounted frontend from:", frontend_path)
+    # Run server
+    uvicorn.run(app, host="0.0.0.0", port=8003, reload=False)

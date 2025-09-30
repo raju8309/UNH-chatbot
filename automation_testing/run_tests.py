@@ -11,7 +11,7 @@ GOLD   = ROOT / "automation_testing" / "gold.jsonl"
 
 
 sys.path.insert(0, str(ROOT / "backend"))
-from main import build_index_from_json, answer_with_sources 
+from main import load_catalog, answer_with_sources 
 
 def run(cmd):
     print("→", " ".join(str(c) for c in cmd))
@@ -22,8 +22,6 @@ def main():
         raise SystemExit(f"Missing gold file: {GOLD}")
     if not EVAL.exists():
         raise SystemExit(f"Missing evaluator: {EVAL}")
-
-    os.environ["RUN_API"] = "0"
 
     # Create timestamped report directory
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -40,7 +38,7 @@ def main():
     catalog_path = ROOT / "scraper" / "unh_catalog.json"
     if not catalog_path.exists():
         raise SystemExit(f"Missing catalog JSON: {catalog_path}")
-    build_index_from_json(str(catalog_path))
+    load_catalog(str(catalog_path))
 
     # Generate predictions using the real pipeline
     preds_path = report_dir / "preds.jsonl"

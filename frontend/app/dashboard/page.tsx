@@ -441,7 +441,7 @@ export default function TestResultsPage() {
     // Load test results data
     const loadData = async () => {
       try {
-        const response = await fetch('http://localhost:8003/reports');
+        const response = await fetch('/reports');
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
@@ -489,7 +489,7 @@ export default function TestResultsPage() {
     setIsRunningTest(true);
     
     try {
-      const response = await fetch('http://localhost:8003/run-tests', {
+      const response = await fetch('/run-tests', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -505,7 +505,7 @@ export default function TestResultsPage() {
       // Refresh the data after a successful test run
       setTimeout(async () => {
         try {
-          const response = await fetch('http://localhost:8003/reports');
+          const response = await fetch('/reports');
           if (response.ok) {
             const data = await response.json();
             setTestData(data);
