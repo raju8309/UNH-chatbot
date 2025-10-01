@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import sys, subprocess, json, os
+import sys, subprocess, json
 import shutil
 from pathlib import Path
 from datetime import datetime
@@ -9,15 +9,15 @@ PY     = sys.executable
 EVAL   = ROOT / "automation_testing" / "evaluator.py"
 GOLD   = ROOT / "automation_testing" / "gold.jsonl"
 
-
 sys.path.insert(0, str(ROOT / "backend"))
-from main import load_catalog, _answer_question 
+
+from main import load_initial_data, load_retrieval_cfg, _answer_question
 
 def run(cmd):
     print("→", " ".join(str(c) for c in cmd))
     subprocess.check_call(cmd)
 
-def main():
+if __name__ == "__main__":
     if not GOLD.exists():
         raise SystemExit(f"Missing gold file: {GOLD}")
     if not EVAL.exists():
@@ -34,11 +34,9 @@ def main():
     shutil.copy2(GOLD, gold_copy)
     print(f"Copied {GOLD} to {gold_copy}")
 
-    # Build the index from the scraped catalog JSON (single path)
-    catalog_path = ROOT / "scraper" / "unh_catalog.json"
-    if not catalog_path.exists():
-        raise SystemExit(f"Missing catalog JSON: {catalog_path}")
-    load_catalog(str(catalog_path))
+    # Load catalog
+    load_retrieval_cfg()
+    load_initial_data()
 
     # Generate predictions using the real pipeline
     preds_path = report_dir / "preds.jsonl"
@@ -50,7 +48,7 @@ def main():
             qid = rec["id"]
             q   = rec["query"]
 
-            ans, _sources, retrieved_ids = _answer_question(q, True)
+            ans, _sources, retrieved_ids = _answer_question(q)
 
             fout.write(json.dumps({
                 "id": qid,
@@ -76,6 +74,3 @@ def main():
     print(f" - {report_dir / 'gold.jsonl'} (copy of test data)")
     print(f" - {report_dir / 'preds.jsonl'}")
     print(f" - {report_dir / 'report.json'}")
-
-if __name__ == "__main__":
-    main()

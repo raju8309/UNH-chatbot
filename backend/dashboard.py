@@ -85,6 +85,12 @@ async def get_test_results():
                                     {}
                                 )
                                 
+                                retrieved_ids = pred['retrieved_ids']
+                                # Turn dictionary into list of strings (docid:index)
+                                if retrieved_ids and isinstance(retrieved_ids[0], dict):
+                                    from main import base_doc_id
+                                    retrieved_ids = [f"{base_doc_id(item.get('url', ''))}#{item.get('idx', '')}" for item in retrieved_ids]
+                                                               
                                 combined_predictions.append({
                                     'id': pred_id,
                                     'category': pred_id.split('-')[0],  # AS, DR, GR, GA
@@ -92,7 +98,7 @@ async def get_test_results():
                                     'model_answer': pred['model_answer'],
                                     'reference_answer': gold_item['reference_answer'],
                                     'nuggets': gold_item['nuggets'],
-                                    'retrieved_ids': pred['retrieved_ids'],
+                                    'retrieved_ids': retrieved_ids,
                                     'gold_passages': gold_item['gold_passages'],
                                     'url': gold_item['url'],
                                     'metrics': {

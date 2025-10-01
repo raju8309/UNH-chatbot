@@ -20,10 +20,9 @@ from sentence_transformers import SentenceTransformer
 from transformers import pipeline
 import uvicorn
 
-from backend.dashboard import router as dashboard_router
-from backend.hierarchy import compute_tier
-from backend.text_fragments import build_text_fragment_url, choose_snippet, is_synthetic_label
-
+from dashboard import router as dashboard_router
+from hierarchy import compute_tier
+from text_fragments import build_text_fragment_url, choose_snippet, is_synthetic_label
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / "scraper"
@@ -40,7 +39,6 @@ chunk_meta: List[Dict[str, Any]] = []
 
 _LOG_LOCK = threading.Lock()
 
-
 embed_model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
 qa_pipeline = pipeline(
     "text2text-generation",
@@ -49,17 +47,6 @@ qa_pipeline = pipeline(
 )
 
 app = FastAPI()
-app.include_router(dashboard_router)
-
-PUBLIC_URL = os.getenv("PUBLIC_URL", "http://localhost:8003/")
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[PUBLIC_URL],
-    allow_credentials=False,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
 
 def load_retrieval_cfg() -> None:
     global CFG, POLICY_TERMS
@@ -87,10 +74,8 @@ def load_retrieval_cfg() -> None:
     )
     POLICY_TERMS = tuple(CFG.get("policy_terms", []))
 
-
 def _compute_meta_from_source(src: Dict[str, Any]) -> Dict[str, Any]:
     return compute_tier(src.get("url", ""), src.get("title", ""))
-
 
 def save_chunks_cache() -> None:
     if not chunk_texts or chunks_embeddings is None:
@@ -107,7 +92,6 @@ def save_chunks_cache() -> None:
             f,
         )
     print(f"saved {len(chunk_texts)} chunks to cache")
-
 
 def load_chunks_cache() -> bool:
     global chunk_texts, chunk_sources, chunks_embeddings, chunk_meta
@@ -130,7 +114,6 @@ def load_chunks_cache() -> bool:
         return False
     print(f"Loaded {len(chunk_texts)} chunks from cache.")
     return True
-
 
 def load_json_file(path: str) -> None:
     global chunks_embeddings, chunk_texts, chunk_sources, chunk_meta
@@ -230,13 +213,11 @@ def load_json_file(path: str) -> None:
     print(f"[loader] Pages parsed: {page_count}")
     print(f"[loader] New chunks: {len(new_texts)}  |  Total chunks: {len(chunk_texts)}")
 
-
 def load_catalog(path: Path) -> None:
     if path.exists():
         load_json_file(str(path))
     else:
         print(f"WARNING: {path} not found, skipping.")
-
 
 def _program_intent(query: str) -> bool:
     q = (query or "")
@@ -248,14 +229,11 @@ def _program_intent(query: str) -> bool:
     course_code = re.search(code_rx, q)
     return any(k in ql for k in (course_kw + degree_kw)) or bool(course_code)
 
-
 def _tier_boost(tier: int) -> float:
     return float(CFG.get("tier_boosts", {}).get(tier, 1.0))
 
-
 def _is_acad_reg_url(url: str) -> bool:
     return isinstance(url, str) and "/graduate/academic-regulations-degree-requirements/" in url
-
 
 def _title_for_sim(src: Dict[str, Any]) -> str:
     title = (src.get("title") or "").strip()
@@ -264,7 +242,6 @@ def _title_for_sim(src: Dict[str, Any]) -> str:
     segs = [s for s in path.split("/") if s]
     tail = " ".join(segs[-2:]) if segs else ""
     return (title + " " + tail).strip()
-
 
 def _tier4_is_relevant_embed(query: str, idx: int) -> bool:
     gate = CFG.get("tier4_gate", {})
@@ -279,7 +256,6 @@ def _tier4_is_relevant_embed(query: str, idx: int) -> bool:
     sim = float(np.dot(q_vec, c_vec) / (np.linalg.norm(q_vec) * np.linalg.norm(c_vec) + 1e-8))
     thresh = float(gate.get("min_title_sim", 0.42))
     return sim >= thresh
-
 
 def _search_chunks(query: str, topn: int = 40, k: int = 5):
     if chunks_embeddings is None or not chunk_texts:
@@ -361,11 +337,9 @@ def _search_chunks(query: str, topn: int = 40, k: int = 5):
         )
     return final, retrieval_path
 
-
 def get_top_chunks_policy(question: str, top_k: int = 5):
     idxs, _ = _search_chunks(question, topn=40, k=top_k)
     return [(chunk_texts[i], chunk_sources[i]) for i in idxs]
-
 
 def _wrap_sources_with_text_fragments(sources_with_passages, question: str):
     wrapped = []
@@ -377,7 +351,6 @@ def _wrap_sources_with_text_fragments(sources_with_passages, question: str):
         snippet = choose_snippet(passage, hint=question, max_chars=160)
         wrapped.append({**src, "url": build_text_fragment_url(url, text=snippet) if snippet else url})
     return wrapped
-
 
 def _combine_answers(short_answer: str, long_answer: str) -> str:
     short_answer = (short_answer or "").strip()
@@ -391,7 +364,6 @@ def _combine_answers(short_answer: str, long_answer: str) -> str:
         combined = short_answer or long_answer
     sentences = re.split(r"(?<=[.!?]) +", combined)
     return " ".join(sentences[:3]).strip()
-
 
 def _answer_question(question: str):
     idxs, retrieval_path = _search_chunks(question, topn=40, k=5)
@@ -431,31 +403,32 @@ def _answer_question(question: str):
         citation_lines.append(line)
     return answer, citation_lines, retrieval_path
 
-
 @lru_cache(maxsize=128)
 def cached_answer_tuple(question_str: str):
     return _answer_question(question_str)
 
-
 def cached_answer_with_path(message: str):
     return cached_answer_tuple(message)
 
+# small test helper: answer + retrieved_ids
+def base_doc_id(url: str) -> str:
+    if not url:
+        return "catalog"
+    p = urlparse(url)
+    name = (Path(p.path).name or "").rstrip("/")
+    if not name and p.path:
+        name = Path(p.path).parts[-1]
+    slug = (name or "catalog").replace(".html", "").replace(".htm", "") or "catalog"
+    return slug
 
 class ChatRequest(BaseModel):
     message: str
     history: Optional[List[str]] = None
 
-
 class ChatResponse(BaseModel):
     answer: str
     sources: List[str]
     retrieval_path: List[Dict[str, Any]]
-
-
-@app.get("/health")
-def health():
-    return {"ok": True}
-
 
 @app.get("/debug/tier-counts")
 def tier_counts():
@@ -472,12 +445,9 @@ def tier_counts():
         "total": len(chunk_meta),
     }
 
-
 @app.post("/reset")
 async def reset_chat():
-    cached_answer_tuple.cache_clear()
     return {"status": "cleared"}
-
 
 def log_chat_to_csv(question: str, answer: str, sources: List[str]) -> None:
     ts = datetime.utcnow().isoformat(timespec="seconds") + "Z"
@@ -485,7 +455,6 @@ def log_chat_to_csv(question: str, answer: str, sources: List[str]) -> None:
     with _LOG_LOCK:
         with open(CHAT_LOG_PATH, "a", newline="", encoding="utf-8") as f:
             csv.writer(f).writerow(row)
-
 
 @app.post("/chat", response_model=ChatResponse)
 async def answer_question(request: ChatRequest):
@@ -496,19 +465,25 @@ async def answer_question(request: ChatRequest):
     log_chat_to_csv(message, answer, sources)
     return ChatResponse(answer=answer, sources=sources, retrieval_path=retrieval_path)
 
-
 def ensure_chat_log_file() -> None:
     if not os.path.isfile(CHAT_LOG_PATH):
         with open(CHAT_LOG_PATH, "w", newline="", encoding="utf-8") as f:
             csv.writer(f).writerow(["timestamp", "question", "answer", "sources_json"])
 
-
-def mount_frontend(app_instance: FastAPI) -> None:
+def configure_app(app_instance: FastAPI) -> None:
+    app.include_router(dashboard_router)
+    PUBLIC_URL = os.getenv("PUBLIC_URL", "http://localhost:8003/")
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=[PUBLIC_URL],
+        allow_credentials=False,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
     frontend_path = BASE_DIR / "frontend" / "out"
     if frontend_path.is_dir():
         app_instance.mount("/", StaticFiles(directory=str(frontend_path), html=True), name="frontend")
         print("Mounted frontend from:", frontend_path)
-
 
 def load_initial_data() -> None:
     loaded_from_cache = load_chunks_cache()
@@ -518,12 +493,9 @@ def load_initial_data() -> None:
             load_catalog(DATA_DIR / name)
         save_chunks_cache()
 
-
-load_retrieval_cfg()
-ensure_chat_log_file()
-load_initial_data()
-mount_frontend(app)
-
-
 if __name__ == "__main__":
+    load_retrieval_cfg()
+    ensure_chat_log_file()
+    load_initial_data()
+    configure_app(app)
     uvicorn.run(app, host="0.0.0.0", port=8003, reload=False)

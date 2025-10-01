@@ -24,6 +24,10 @@ import numpy as np
 from bert_score import score as bertscore
 from sentence_transformers import SentenceTransformer, util
 
+import sys
+sys.path.insert(0, str(Path(__file__).parent.parent / "backend"))
+from main import base_doc_id
+
 # -------- Fallback Paths -------
 GOLD = Path(__file__).with_name("gold.jsonl")
 PREDS = Path(__file__).with_name("preds.jsonl")
@@ -150,7 +154,7 @@ def parse_args():
 
 
 # -------- Main --------
-def main() -> None:
+if __name__ == "__main__":
     args = parse_args()
     
     # Determine input/output paths
@@ -180,6 +184,10 @@ def main() -> None:
         gold_passages = set(g.get("gold_passages", []))
         retrieved = p["retrieved_ids"]
 
+        # Turn dictionary into list of strings (docid:index)
+        if retrieved and isinstance(retrieved[0], dict):
+            retrieved = [f"{base_doc_id(item.get('url', ''))}#{item.get('idx', '')}" 
+                            for item in retrieved if isinstance(item, dict)]
         # Content metrics
         nugP, nugR, nugF1 = ev.nugget_prf(nuggets, answer)
         sbert = ev.sbert_cosine(answer, ref)
@@ -233,7 +241,3 @@ def main() -> None:
         encoding="utf-8",
     )
     print("Wrote", report_path)
-
-
-if __name__ == "__main__":
-    main()
