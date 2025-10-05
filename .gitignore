@@ -5,6 +5,9 @@ __pycache__/
 *.pyc
 
 # macOS
-.DS_Store/backend/.backend-venv/
+.DS_Store
+
+/backend/.backend-venv/
+/backend/models/
 /.model_cache/
 **/__pycache__/
