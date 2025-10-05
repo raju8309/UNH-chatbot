@@ -98,10 +98,10 @@ def choose_snippet(
 
 def is_synthetic_label(passage: str) -> bool:
     """
-    Heuristic: skip fragments for synthetic items like "Courses: <label>".
+    Heuristic: skip fragments for synthetic items like "Links: <label>".
     Those strings don't appear verbatim on the destination page.
     """
     if passage is None:
         return False
     p = _normalize_spaces_only(passage)
-    return p.lower().startswith("courses:")
+    return p.lower().startswith("links:")
