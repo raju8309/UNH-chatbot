@@ -1,55 +1,103 @@
-## UNH Graduate Catalog Chatbot
+# UNH Graduate Catalog Chatbot
 
-A chatbot integrated into UNH’s graduate student academic catalog. It helps current and prospective graduate students navigate programs, courses, and policies in the catalog more easily.
- 
+A chatbot integrated with UNH’s graduate catalog to help current and prospective graduate students navigate programs, courses, and policies efficiently.
+
 ## Features
- 
-- Query the graduate catalog for program details, course descriptions, and requirements
-- Uses semantic search with embeddings for relevant context retrieval
-- Answers questions using a local **Flan-T5 Small** model
-- Provides citations for the retrieved information, linking to specific paragraphs from the source(s)
-- Automated testing using BERTScore for insightful reports on accurary
-- A test dashboard for viewing and comparing automated test results
- 
+
+- Query the graduate catalog for program details, course descriptions, and requirements.  
+- Uses **semantic search with embeddings** for context-aware retrieval.  
+- Answers questions using a local **Flan-T5 Small** model (optionally fine-tuned).  
+- Provides **citations** for retrieved information, linking to specific paragraphs from sources.  
+- Automated testing using **BERTScore** for detailed reports on accuracy.  
+- Test dashboard for viewing and comparing automated test results.  
+- **Instant loading** thanks to caching of all text chunks from the entire sitemap.
+
 ## Requirements
- 
-- Python 3.8+
-- `pip` dependencies listed in `requirements.txt`
-- NPM, Node.js, Tailwind CSS
+
+- Python 3.8+  
+- Pip dependencies listed in `requirements.txt`  
+- Node.js & NPM  
+- Tailwind CSS
 
 ## Design
- 
-The chatbot follows a simple retrieval-augmented generation (RAG) architecture:
- 
-1. **Data Loading**
-   - JSON files containing scraped website data are loaded into memory.
-   - Each section of the JSON is broken into text chunks, along with source metadata for citations.
- 
-2. **Embeddings & Semantic Search**
-   - Each text chunk is converted into a vector embedding using `sentence-transformers/all-MiniLM-L6-v2`.
-   - When a user asks a question, the chatbot computes the embedding of the question and finds the top relevant text chunks using cosine similarity.
- 
-3. **Answer Generation**
-   - The selected text chunks are passed as context to a local **Flan-T5 Small** model (`google/flan-t5-small`).
-   - The model generates an answer restricted to the context and includes citations for transparency.
- 
-4. **User Interface**
-   - Displays both the answer and source citations for each query.
-   - Built using **Next.js** with TailwindCSS for an interactive web-based chat interface.
-   - Follows the [UNH branding guidelines](https://www.unh.edu/marketing/resources).
+
+The chatbot follows a **retrieval-augmented generation (RAG)** architecture:
+
+### 1. Data Loading & Caching
+
+- JSON files containing scraped catalog data are loaded into memory.  
+- Each section is broken into text chunks with source metadata for citations.  
+- All chunks are **preprocessed and cached**, allowing semantic search to run instantly.
+
+### 2. Embeddings & Semantic Search
+
+- Text chunks are converted into vector embeddings using `sentence-transformers/all-MiniLM-L6-v2`.  
+- User questions are embedded and matched with top relevant text chunks via cosine similarity.
+
+### 3. Answer Generation
+
+- Context chunks are passed to a local **Flan-T5 Small** model (`google/flan-t5-small`).  
+- Generated answers are limited to the context and include citations for transparency.  
+- **Answer hierarchy:**  
+  - General pages (like the academic standards page) are cited before specific program pages.  
+  - Specific program pages are cited only if the question explicitly asks about them.  
+- **Context-aware sessions:**  
+  - Users can ask follow-up questions.  
+  - Example: If the first question is “What happens if I get a C grade?” and the answer is about certificate programs, the user can follow up with “I’m not in a certificate program” to get information relevant to Ph.D. programs.
+
+### 4. User Interface
+
+- Displays both answers and source citations.  
+- Built with **Next.js** and Tailwind CSS for an interactive web chat.  
+- Follows [UNH branding guidelines](https://www.unh.edu/marketing/resources).
+
+## Model Training
+
+Before deployment, the **Flan-T5 Small** model can be fine-tuned to improve accuracy. The fine-tuned model is too large to store in GitHub, so this step is **required for local deployment**.
+
+### Steps to Train
+
+1. Ensure Python dependencies are installed (via `requirements.txt`).  
+2. Place your `gold.jsonl` file in the `automation_testing` directory.  
+3. Run the training script from the repository root:
+
+```bash
+cd backend
+python3 train.py
+```
+
+### The script will:
+
+- Load the gold dataset and generate training examples using the retrieval pipeline.  
+- Split the data into training and validation sets.  
+- Fine-tune Flan-T5 Small using GPU if available (CPU fallback included).  
+- Save the fine-tuned model to `backend/models/flan-t5-small-finetuned`.  
+- Evaluate the model and display sample predictions.
+
+### Notes:
+
+- GPU is strongly recommended for faster training.  
+- After training, the model moves to CPU for deployment compatibility.  
+- Once trained, the backend will automatically use the fine-tuned model.
 
 ## Testing
- 
-Automated tests are conducted using `automation_testing/run_tests.py`. The script creates a timestamp directory in the `reports` folder. The gold set is copied to each of these folders so that the master gold set can be continuously, safely updated. The current gold set is present in the `automation_testing` directory.
 
-Answer predictions are generated with `predict.py`, they're compared against the gold set `gold.jsonl` with `evaluator.py`, and finally a BERTscore report is output. The speed of responses can be analyzed with `automation_testing/test_times.py`, which outputs average repsonse times.
+Automated tests are located in `automation_testing/run_tests.py`.
+
+- Creates a timestamped folder in `reports` for each run.  
+- Copies the gold set for safe continuous updates.  
+- Predictions are generated using `predict.py` and compared against `gold.jsonl` with `evaluator.py`.  
+- Generates **BERTScore reports** for accuracy.  
+- Response times are analyzed with `automation_testing/test_times.py`.
 
 ### Test Dashboard
 
-A dashboard UI is available for quikcly running, interpreting, and comparing test results and chat logs. To view/use it, simply follow the below steps to run the progam and then visit the ```/dashboard``` page in your browser. For example, ```localhost:8003/dashboard```.
+A dashboard UI allows you to quickly run, interpret, and compare test results:
+
+- After running the program, visit [http://localhost:8003/dashboard](http://localhost:8003/dashboard).
 
 ## Setup & Usage
- 
+
 Clone the repository and install dependencies. You will only need to run the backend, as the frontend is bundled with it. Connect to the local IP address output, http://localhost:8003/, to view the chatbot in your browser.
 
 ### Run Locally
