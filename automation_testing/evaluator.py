@@ -5,6 +5,7 @@ Evaluation script for QA predictions against a gold set.
 Metrics:
 - Nugget precision / recall / F1 using SBERT similarity
 - SBERT cosine similarity to reference answer
+- SBERT cosine similarity to top retrieved chunk
 - BERTScore F1 to reference answer
 - Retrieval Recall@k and nDCG@k (k in {1,3,5})
 
@@ -26,7 +27,7 @@ from sentence_transformers import SentenceTransformer, util
 
 import sys
 sys.path.insert(0, str(Path(__file__).parent.parent / "backend"))
-from main import base_doc_id
+from main import base_doc_id  # used to normalize doc ids if needed
 
 # -------- Fallback Paths -------
 GOLD = Path(__file__).with_name("gold.jsonl")
@@ -75,13 +76,6 @@ def recall_at_k(pred_ids: List[str], gold_ids: Set[str], k: int) -> float:
 class Evaluator:
     """
     Wraps sentence-transformers for similarity-based metrics.
-
-    Parameters
-    ----------
-    thresh : float
-        Similarity threshold used to count a nugget as matched.
-    model_name : str
-        Sentence-Transformer model used for embeddings.
     """
 
     def __init__(
@@ -92,19 +86,25 @@ class Evaluator:
         self.thresh = thresh
         self.model = SentenceTransformer(model_name)
 
-    # --- Answer-to-reference metrics ---
-    def sbert_cosine(self, answer: str, reference: str) -> float:
-        """Cosine similarity between answer and reference, using SBERT."""
+    # --- Generic SBERT cosine ---
+    def sbert_cosine(self, text1: str, text2: str) -> float:
+        """Cosine similarity between two texts, using SBERT."""
+        if not text1 or not text2:
+            return 0.0
         em = self.model.encode(
-            [answer, reference],
+            [text1, text2],
             convert_to_tensor=True,
             normalize_embeddings=True,
         )
         sim = util.cos_sim(em[0], em[1]).cpu().numpy()
-        return float(sim)
+        # np array -> scalar
+        return float(sim.item()) if hasattr(sim, "item") else float(sim)
 
+    # --- BERTScore F1 ---
     def bertscore_f1(self, reference: str, answer: str) -> float:
         """BERTScore F1 between answer and reference (English, with baseline)."""
+        if not reference or not answer:
+            return 0.0
         _, _, f1 = bertscore(
             [answer],
             [reference],
@@ -153,49 +153,143 @@ def parse_args():
     return ap.parse_args()
 
 
+# -------- Auto-pick latest reports dir --------
+def _latest_report_dir() -> Path | None:
+    """Return newest directory under automation_testing/reports, or None."""
+    base = Path(__file__).parent / "reports"
+    if not base.exists():
+        return None
+    dirs = [d for d in base.iterdir() if d.is_dir()]
+    if not dirs:
+        return None
+    return max(dirs, key=lambda p: p.name)
+
+
 # -------- Main --------
 if __name__ == "__main__":
     args = parse_args()
-    
-    # Determine input/output paths
+
+    # Decide which run folder to use
+    output_dir: Path | None = None
     if args.output_dir:
         output_dir = Path(args.output_dir)
+    else:
+        if not PREDS.exists():
+            output_dir = _latest_report_dir()
+
+    # Resolve file paths
+    if output_dir:
         preds_path = output_dir / "preds.jsonl"
         report_path = output_dir / "report.json"
+        gold_path = output_dir / "gold.jsonl"
     else:
         preds_path = PREDS
         report_path = REPORT
-    
+        gold_path = GOLD
+
+    # Friendly checks
+    missing = []
+    if not preds_path.exists():
+        missing.append(str(preds_path))
+    if not gold_path.exists():
+        missing.append(str(gold_path))
+    if missing:
+        report_path.write_text(
+            json.dumps(
+                {
+                    "per_question": [],
+                    "summary": {
+                        "count": 0,
+                        "nugget_precision": 0.0,
+                        "nugget_recall": 0.0,
+                        "nugget_f1": 0.0,
+                        "sbert_cosine": 0.0,
+                        "sbert_cosine_chunk": 0.0,
+                        "bertscore_f1": 0.0,
+                        "recall@1": 0.0,
+                        "recall@3": 0.0,
+                        "recall@5": 0.0,
+                        "ndcg@1": 0.0,
+                        "ndcg@3": 0.0,
+                        "ndcg@5": 0.0,
+                    },
+                },
+                indent=2,
+            ),
+            encoding="utf-8",
+        )
+        print("No inputs for evaluator yet.\nMissing:\n  " + "\n  ".join(missing))
+        print("Wrote", report_path)
+        raise SystemExit(0)
+
     # Load gold and predictions keyed by id
-    gold: Dict[str, Dict] = {r["id"]: r for r in read_jsonl(GOLD)}
+    gold: Dict[str, Dict] = {r["id"]: r for r in read_jsonl(gold_path)}
     preds: Dict[str, Dict] = {r["id"]: r for r in read_jsonl(preds_path)}
 
     ev = Evaluator()
 
     # Buckets to accumulate metrics
     per_question: List[Dict] = []
-    buckets = {k: [] for k in ["nugP", "nugR", "nugF1", "sbert", "bsF1", "R@1", "R@3", "R@5", "N@1", "N@3", "N@5"]}
+    buckets = {k: [] for k in [
+        "nugP","nugR","nugF1","sbert","sbert_chunk","bsF1","R@1","R@3","R@5","N@1","N@3","N@5"
+    ]}
 
     for qid, g in gold.items():
         p = preds.get(qid, {"model_answer": "", "retrieved_ids": []})
-        answer = p["model_answer"]
+        answer = p.get("model_answer", "")
         ref = g.get("reference_answer", "")
         nuggets = g.get("nuggets", [])
         gold_passages = set(g.get("gold_passages", []))
-        retrieved = p["retrieved_ids"]
 
-        # Turn dictionary into list of strings (docid:index)
-        if retrieved and isinstance(retrieved[0], dict):
-            retrieved = [f"{base_doc_id(item.get('url', ''))}#{item.get('idx', '')}" 
-                            for item in retrieved if isinstance(item, dict)]
+        # ---------- Normalize retrieved ids and top chunk text (handles all formats) ----------
+        retrieved_ids: List[str] = []
+        top_chunk_text = ""
+
+        if isinstance(p.get("retrieved"), list) and p["retrieved"]:
+            # preferred modern schema
+            for r in p["retrieved"]:
+                cid = r.get("chunk_id") or r.get("id")
+                if not cid:
+                    url = r.get("url", "")
+                    idx = r.get("idx")
+                    if url and (idx is not None):
+                        cid = f"{base_doc_id(url)}#{idx}"
+                if cid:
+                    retrieved_ids.append(str(cid))
+            top_chunk_text = p["retrieved"][0].get("text", "") or ""
+
+        else:
+            raw = p.get("retrieved_ids", []) or []
+            if raw and isinstance(raw, list) and isinstance(raw[0], dict):
+                # legacy dict form inside retrieved_ids
+                ids: List[str] = []
+                for r in raw:
+                    cid = r.get("chunk_id") or r.get("id")
+                    if not cid:
+                        url = r.get("url", "")
+                        idx = r.get("idx")
+                        if url and (idx is not None):
+                            cid = f"{base_doc_id(url)}#{idx}"
+                    if cid:
+                        ids.append(str(cid))
+                retrieved_ids = ids
+            else:
+    
+                retrieved_ids = [str(x) for x in raw]
+
+     
+
         # Content metrics
         nugP, nugR, nugF1 = ev.nugget_prf(nuggets, answer)
         sbert = ev.sbert_cosine(answer, ref)
         bsF1 = ev.bertscore_f1(ref, answer)
 
+        # SBERT cosine between gold text and top retrieved chunk
+        sbert_chunk = ev.sbert_cosine(ref, top_chunk_text)
+
         # Retrieval metrics
-        r1, r3, r5 = (recall_at_k(retrieved, gold_passages, k) for k in (1, 3, 5))
-        n1, n3, n5 = (ndcg_at_k(retrieved, gold_passages, k) for k in (1, 3, 5))
+        r1, r3, r5 = (recall_at_k(retrieved_ids, gold_passages, k) for k in (1, 3, 5))
+        n1, n3, n5 = (ndcg_at_k(retrieved_ids, gold_passages, k) for k in (1, 3, 5))
 
         row = {
             "id": qid,
@@ -203,6 +297,7 @@ if __name__ == "__main__":
             "nugget_recall": nugR,
             "nugget_f1": nugF1,
             "sbert_cosine": sbert,
+            "sbert_cosine_chunk": sbert_chunk,
             "bertscore_f1": bsF1,
             "recall@1": r1,
             "recall@3": r3,
@@ -214,12 +309,12 @@ if __name__ == "__main__":
         per_question.append(row)
 
         for key, val in zip(
-            ["nugP", "nugR", "nugF1", "sbert", "bsF1", "R@1", "R@3", "R@5", "N@1", "N@3", "N@5"],
-            [nugP, nugR, nugF1, sbert, bsF1, r1, r3, r5, n1, n3, n5],
+            ["nugP","nugR","nugF1","sbert","sbert_chunk","bsF1","R@1","R@3","R@5","N@1","N@3","N@5"],
+            [nugP,nugR,nugF1,sbert,sbert_chunk,bsF1,r1,r3,r5,n1,n3,n5],
         ):
             buckets[key].append(val)
 
-    mean = lambda xs: float(np.mean(xs)) if xs else 0.0  # noqa: E731
+    mean = lambda xs: float(np.mean(xs)) if xs else 0.0 
 
     summary = {
         "count": len(per_question),
@@ -227,6 +322,7 @@ if __name__ == "__main__":
         "nugget_recall": mean(buckets["nugR"]),
         "nugget_f1": mean(buckets["nugF1"]),
         "sbert_cosine": mean(buckets["sbert"]),
+        "sbert_cosine_chunk": mean(buckets["sbert_chunk"]),
         "bertscore_f1": mean(buckets["bsF1"]),
         "recall@1": mean(buckets["R@1"]),
         "recall@3": mean(buckets["R@3"]),
