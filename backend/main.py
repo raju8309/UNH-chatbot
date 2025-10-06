@@ -1153,10 +1153,6 @@ async def answer_question(request: ChatRequest, x_session_id: Optional[str] = He
 
 
 def configure_app(app_instance: FastAPI) -> None:
-    global _APP_CONFIGURED
-    if _APP_CONFIGURED:
-        return
-
     app_instance.include_router(dashboard_router)
 
     PUBLIC_URL = os.getenv("PUBLIC_URL", "http://localhost:8003/")
@@ -1172,8 +1168,6 @@ def configure_app(app_instance: FastAPI) -> None:
     if frontend_path.is_dir():
         app_instance.mount("/", StaticFiles(directory=str(frontend_path), html=True), name="frontend")
         print("Mounted frontend from:", frontend_path)
-
-    _APP_CONFIGURED = True
 
 def ensure_chat_log_file() -> None:
     if not os.path.isfile(CHAT_LOG_PATH):
@@ -1194,5 +1188,5 @@ if __name__ == "__main__":
     load_retrieval_cfg()
     ensure_chat_log_file()
     load_initial_data()
-    configure_app(app)  # safe no-op
+    configure_app(app)
     uvicorn.run(app, host="0.0.0.0", port=8003, reload=False)
