@@ -352,6 +352,7 @@ def search_chunks(query: str, topn: int = 40, k: int = 5):
                 "url": src.get("url"),
                 "tier": meta.get("tier"),
                 "tier_name": meta.get("tier_name"),
+                "text": chunk_texts[i] if i < len(chunk_texts) else ""
             }
         )
     return final, retrieval_path
