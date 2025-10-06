@@ -9,25 +9,91 @@ policy_terms:
   - requirements
   - academic standards
   - degree requirements
+  - gre
+  - gmat
+  - english proficiency
+  - toefl
+  - ielts
+  - duolingo
+  - transfer credit
+  - add/drop
+  - withdrawal
+  - leave of absence
+  - pass/fail
+  - probation
+  - dismissal
 
 tier_boosts:
-  1: 1.35   # Academic Regulations & Degree Requirements
-  2: 1.10   # General Information
-  3: 1.00   # Course Descriptions
-  4: 1.00   # Programs of Study
+  1: 1.25
+  2: 1.10
+  3: 1.00
+  4: 1.00
 
 intent:
-  course_keywords: ["course descriptions", "show courses", "list courses"]
-  degree_keywords: ["ms","m.s.","phd","ph.d","mba","mfa","ma","msc","for my program","program requirements","curriculum","concentration"]
-  course_code_regex: "\\b[A-Z]{3,5}\\s?\\d{3}\\b"
+  course_keywords: ["course descriptions", "show courses", "list courses", "prerequisite", "prerequisites", "syllabus"]
+  degree_keywords:
+    - ms
+    - m.s.
+    - phd
+    - ph.d
+    - mba
+    - mfa
+    - ma
+    - msc
+    - program requirements
+    - curriculum
+    - concentration
+    - how many credits
+    - credit requirement
+    - admissions
+    - gre
+    - gpa
+  course_code_regex: "\\b[A-Z]{3,5}\\s?\\d{3}[A-Z]?\\b"
 
 nudges:
-  policy_acadreg_url: 1.15
+  policy_acadreg_url: 1.07
+  same_program_bonus: 2.00
+  course_url_bonus: 1.80
+  course_title_bonus: 1.40
+  other_program_tier34_penalty: 0.60
 
 guarantees:
   ensure_tier1_on_policy: true
+  ensure_tier4_on_program: true
 
 tier4_gate:
   use_embedding: true
-  min_title_sim: 0.42
-  min_alt_sim: 0.38
+  min_title_sim: 0.35
+  min_alt_sim: 0.32
+
+retrieval_sizes:
+  topn_default: 40
+  topn_with_alias: 120
+  k: 5
+
+followups:
+  hints:
+    - "for "
+    - "now "
+    - "do it for"
+    - "for the"
+    - "make that for"
+    - "do that for"
+    - "do it"
+    - "that"
+    - "this"
+    - "same"
+
+program_index:
+  section_stopwords:
+    - upon completion
+    - program learning outcomes
+    - admission requirements
+    - requirements
+    - application requirements
+    - core courses
+    - electives
+    - overview
+    - policies
+    - sample
+    - plan of study
