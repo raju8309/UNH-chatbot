@@ -5,7 +5,7 @@ Evaluation script for QA predictions against a gold set.
 Metrics:
 - Nugget precision / recall / F1 using SBERT similarity
 - SBERT cosine similarity to reference answer
-- SBERT cosine similarity to top retrieved chunk text (best of top-3; optional)
+- SBERT cosine similarity to top retrieved chunk text
 - BERTScore F1 to reference answer
 - Retrieval Recall@k and nDCG@k (k in {1,3,5})
 
@@ -232,21 +232,12 @@ if __name__ == "__main__":
 
         # --- Grab any available retrieved chunk texts for sbert_cosine_chunk (best of top-3) 
         retrieved_texts: List[str] = []
-
-        # If your pipeline saved 'retrieved' with richer dicts (including 'text')
-        if isinstance(p.get("retrieved"), list):
-            for r in p["retrieved"][:3]:
+        if isinstance(p.get("retrieved_ids"), list):
+            for r in p["retrieved_ids"][:3]:
                 if isinstance(r, dict):
                     t = r.get("text")
                     if isinstance(t, str) and t.strip():
                         retrieved_texts.append(t.strip())
-
-        # Or sometimes 'retrieved_ids' might be list[dict] with 'text'
-        if not retrieved_texts and retrieved and isinstance(retrieved, list) and len(retrieved) > 0 and isinstance(retrieved[0], dict):
-            for r in retrieved[:3]:
-                t = r.get("text")
-                if isinstance(t, str) and t.strip():
-                    retrieved_texts.append(t.strip())
 
         # Normalize retrieved ids for recall/ndcg
         if retrieved and isinstance(retrieved, list) and len(retrieved) > 0 and isinstance(retrieved[0], dict):
@@ -294,7 +285,7 @@ if __name__ == "__main__":
         ):
             buckets[key].append(val)
 
-    mean = lambda xs: float(np.mean(xs)) if xs else 0.0  
+    mean = lambda xs: float(np.mean(xs)) if xs else 0.0
 
     summary = {
         "count": len(per_question),
