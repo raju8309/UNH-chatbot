@@ -12,6 +12,8 @@ export type ChatMessage = {
 };
 
 export default function Home() {
+    // Unique session ID per component instance (per tab)
+    const [sessionId] = useState(() => crypto.randomUUID());
     // Chat state and logic
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [input, setInput] = useState("");
@@ -34,6 +36,7 @@ export default function Home() {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
+            "X-Session-Id": sessionId
           },
           body: JSON.stringify({ message: userInput }),
         });
@@ -61,6 +64,7 @@ export default function Home() {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
+            "X-Session-Id": sessionId
           },
           body: JSON.stringify({ message: q }),
         });
@@ -182,6 +186,7 @@ export default function Home() {
                           method: "POST",
                           headers: {
                             "Content-Type": "application/json",
+                            "X-Session-Id": sessionId
                           }
                         });
                       } catch (err) {
