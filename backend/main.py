@@ -228,10 +228,16 @@ def load_json_file(path: str) -> None:
 
     # Process the root structure
     if isinstance(data, dict):
-        root_sections = data.get("sections", [])
-        if isinstance(root_sections, list):
-            for section in root_sections:
-                _process_section(section)
+        pages = data.get("pages", [])
+        if isinstance(pages, list):
+            for page in pages:
+                if isinstance(page, dict):
+                    page_title = page.get("page_title", "")
+                    page_url = page.get("page_url", "")
+                    sections = page.get("sections", [])
+                    if isinstance(sections, list):
+                        for section in sections:
+                            _process_section(section, page_title, page_url)
     
     if new_texts:
         new_embeds = embed_model.encode(new_texts, convert_to_numpy=True)
