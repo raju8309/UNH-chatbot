@@ -118,7 +118,7 @@ export default function Home() {
                       </div>
                       <div className="flex-shrink-0 w-10 h-10 ml-2 mb-1">
                         <div className="w-10 h-10 bg-[var(--unh-blue)] rounded-full flex items-center justify-center">
-                          <img src="/student.svg" alt="User" className="w-6 h-6 text-white" style={{ filter: 'invert(1)' }} />
+                          <img src="/student.svg" alt="User" className="w-6 h-6" />
                         </div>
                       </div>
                     </div>

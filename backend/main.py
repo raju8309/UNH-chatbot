@@ -32,6 +32,8 @@ DATA_DIR = BASE_DIR / "scraper"
 CACHE_PATH = DATA_DIR / "chunks_cache.pkl"
 CHAT_LOG_PATH = "chat_logs.csv"
 
+UNKNOWN = "I don't have that information."
+
 CFG: Dict[str, Any] = {}
 POLICY_TERMS: Tuple[str, ...] = ()
 
@@ -74,9 +76,16 @@ def update_session(session_id: str, **fields: Any) -> None:
 # Models
 # -----------------------
 embed_model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
+
+# Load trained model, fallback on default
+trained = Path(__file__).parent / "models" / "flan-t5-small-finetuned"
+if trained.exists() and (trained / "config.json").exists():
+    model = str(trained)
+else:
+    model = "google/flan-t5-small"
 qa_pipeline = pipeline(
     "text2text-generation",
-    model="google/flan-t5-small",
+    model=model,
     device=-1,
 )
 
@@ -161,86 +170,69 @@ def load_chunks_cache() -> bool:
 def load_json_file(path: str) -> None:
     global chunks_embeddings, chunk_texts, chunk_sources, chunk_meta
 
-    def _iter_pages(obj: Any):
-        if isinstance(obj, list):
-            for rec in obj:
-                if isinstance(rec, dict):
-                    yield rec.get("page_title") or rec.get("title"), rec.get("page_url", ""), rec.get("sections", [])
+    page_count = 0
+
+    def _process_section(section: Dict[str, Any], parent_title: str = "", base_url: str = "") -> None:
+        nonlocal page_count  # Access the outer variable
+        """Recursively process sections and subsections"""
+        if not isinstance(section, dict):
             return
-        if isinstance(obj, dict):
-            pages = obj.get("pages")
-            if isinstance(pages, list):
-                for rec in pages:
-                    if isinstance(rec, dict):
-                        yield rec.get("page_title") or rec.get("title"), rec.get("page_url", ""), rec.get("sections", [])
-                return
-            if "sections" in obj:
-                yield obj.get("page_title") or obj.get("title"), obj.get("page_url", ""), obj.get("sections", [])
-            return
-        try:
-            with open(path, "r", encoding="utf-8") as f:
-                for line in f:
-                    line = line.strip()
-                    if not line:
-                        continue
-                    try:
-                        rec = json.loads(line)
-                    except json.JSONDecodeError:
-                        continue
-                    if isinstance(rec, dict):
-                        yield rec.get("page_title") or rec.get("title"), rec.get("page_url", ""), rec.get("sections", [])
-        except Exception:
-            return
+            
+        page_count += 1
+        
+        title = section.get("title", "").strip()
+        url = section.get("page_url", base_url).strip()
+        
+        # Build hierarchical title
+        full_title = f"{parent_title} - {title}" if parent_title and title else (title or parent_title)
+        
+        # Process text content - add everything no matter length
+        texts = section.get("text", [])
+        if texts:
+            for text_item in texts:
+                if isinstance(text_item, str) and text_item.strip():
+                    add_chunk(text_item.strip(), full_title, url)
+        
+        # Process lists - only keep content more than 5 words to filter out navigational lists
+        lists = section.get("lists", [])
+        if lists:
+            for list_group in lists:
+                if isinstance(list_group, list):
+                    for item in list_group:
+                        if isinstance(item, str) and item.strip():
+                            if (len(item) > 5):
+                                add_chunk(item.strip(), full_title, url)
+        
+        # Process subsections recursively
+        subsections = section.get("subsections", [])
+        if subsections:
+            for subsection in subsections:
+                _process_section(subsection, full_title, url)
+
+    def add_chunk(text: str, title: str, url: str) -> None:
+        new_texts.append(text)
+        src = {"title": title, "url": url}
+        new_sources.append(src)
+        new_meta.append(_compute_meta_from_source(src))
 
     try:
         with open(path, "r", encoding="utf-8") as f:
             data = json.load(f)
     except json.JSONDecodeError:
-        data = None
-
-    if data is not None:
-        page_iter = _iter_pages(data)
-    else:
-        page_iter = _iter_pages("")
+        print(f"ERROR: Could not parse JSON from {path}")
+        return
 
     new_texts: List[str] = []
     new_sources: List[Dict[str, Any]] = []
     new_meta: List[Dict[str, Any]] = []
 
-    def add_piece(text_str: str, title_str: str, url_str: str) -> None:
-        if not text_str:
-            return
-        new_texts.append(text_str)
-        src = {"title": title_str, "url": url_str}
-        new_sources.append(src)
-        new_meta.append(_compute_meta_from_source(src))
-
-    page_count = 0
-    for page_title, page_url, sections in page_iter:
-        page_count += 1
-        if not isinstance(sections, list):
-            sections = [sections] if isinstance(sections, dict) else []
-        for sub in sections:
-            if not isinstance(sub, dict):
-                continue
-            sec_title = sub.get("title", "")
-            full_title = f"{page_title} – {sec_title}" if sec_title else (page_title or sec_title)
-            sec_url = sub.get("page_url", "") or page_url
-            for p in sub.get("text", []) or []:
-                if isinstance(p, str):
-                    add_piece(p, full_title, sec_url)
-            for li in sub.get("lists", []) or []:
-                if isinstance(li, list):
-                    for item in li:
-                        if isinstance(item, str):
-                            add_piece(item, full_title, sec_url)
-            for link in sub.get("links", []) or []:
-                if isinstance(link, dict):
-                    label = link.get("label")
-                    link_url = link.get("url")
-                    if label and link_url:
-                        add_piece(f"Courses: {label}", label, link_url)
-
+    # Process the root structure
+    if isinstance(data, dict):
+        root_sections = data.get("sections", [])
+        if isinstance(root_sections, list):
+            for section in root_sections:
+                _process_section(section)
+    
     if new_texts:
         new_embeds = embed_model.encode(new_texts, convert_to_numpy=True)
         if chunks_embeddings is None:
@@ -387,7 +379,7 @@ def _extract_course_fallbacks(chunks: List[Tuple[str, Dict[str, Any]]]) -> Dict[
                 out["grademode"] = m.group(1).strip()
     return out
 
-def _search_chunks(
+def search_chunks(
     query: str,
     topn: int = 40,
     k: int = 5,
@@ -399,18 +391,43 @@ def _search_chunks(
         return [], []
 
     q_vec = embed_model.encode([query], convert_to_numpy=True)[0]
-    denom = (np.linalg.norm(chunks_embeddings, axis=1) * np.linalg.norm(q_vec)) + 1e-8
-    sims = (chunks_embeddings @ q_vec) / denom
-
-    cand_idxs = np.argsort(-sims)[:topn].tolist()
+    # Compute cosine similarities
+    chunk_norms = np.linalg.norm(chunks_embeddings, axis=1)
+    query_norm = np.linalg.norm(q_vec)
+    
+    # Avoid division by zero
+    valid_chunks = chunk_norms > 1e-8
+    sims = np.zeros(len(chunks_embeddings))
+    
+    if query_norm > 1e-8:
+        sims[valid_chunks] = (chunks_embeddings[valid_chunks] @ q_vec) / (chunk_norms[valid_chunks] * query_norm)
+    
+    # Get top candidates
+    cand_idxs = np.argsort(-sims)[:topn * 2].tolist()
+    
+    # Enhanced filtering based on query analysis
     q_lower = (query or "").lower()
     allow_program = _program_intent(query) or bool(alias_url)
     looks_policy = any(term in q_lower for term in POLICY_TERMS)
-
+    
+    # Extract key terms from query for better matching
+    query_terms = set(re.findall(r'\b\w+\b', q_lower))
+    
     filtered: List[int] = []
     for i in cand_idxs:
+        if i >= len(chunk_texts):
+            continue
+            
+        chunk_text_lower = chunk_texts[i].lower()
         meta_i = chunk_meta[i] if i < len(chunk_meta) else {}
         tier = meta_i.get("tier", 2)
+        
+        # More lenient relevance check
+        term_matches = len(query_terms.intersection(set(re.findall(r'\b\w+\b', chunk_text_lower))))
+        if term_matches == 0 and sims[i] < 0.1:  # Lower threshold
+            continue
+            
+        # Apply tier filtering
         if tier in (3, 4) and not allow_program:
             continue
         if tier == 4 and allow_program:
@@ -577,13 +594,10 @@ def _search_chunks(
                 "url": src.get("url"),
                 "tier": meta.get("tier"),
                 "tier_name": meta.get("tier_name"),
+                "text": chunk_texts[i] if i < len(chunk_texts) else ""
             }
         )
     return final, retrieval_path
-
-def get_top_chunks_policy(question: str, top_k: int = 5):
-    idxs, _ = _search_chunks(question, topn=40, k=top_k)
-    return [(chunk_texts[i], chunk_sources[i]) for i in idxs]
 
 def _wrap_sources_with_text_fragments(sources_with_passages, question: str):
     wrapped = []
@@ -595,33 +609,6 @@ def _wrap_sources_with_text_fragments(sources_with_passages, question: str):
         snippet = choose_snippet(passage, hint=question, max_chars=160)
         wrapped.append({**src, "url": build_text_fragment_url(url, text=snippet) if snippet else url})
     return wrapped
-
-def _combine_answers(short_answer: str, long_answer: str) -> str:
-    # Normalize
-    s = (short_answer or "").strip()
-    l = (long_answer or "").strip()
-
-    def _is_idk(txt: str) -> bool:
-        return bool(re.search(r"\bi don'?t know\b", (txt or "").lower()))
-
-    # If one says I don't know and the other has content, drop the IDK
-    if _is_idk(s) and l:
-        s = ""
-    if _is_idk(l) and s:
-        l = ""
-
-    s = s.strip(" \n\r\t.:")
-    if s and l:
-        if l.lower().startswith(s.lower()):
-            combined = l
-        else:
-            combined = f"{s}. {l}"
-    else:
-        combined = s or l
-
-    
-    sentences = re.split(r"(?<=[.!?]) +", combined)
-    return " ".join(sentences[:3]).strip()
 
 # --------  intent & program detectors --------
 _INTENT_KEYWORDS = {
@@ -860,7 +847,6 @@ def _extract_gre_requirement(question: str, chunks: List[Tuple[str, Dict[str, An
                 return (text, src, "Yes")
     return None
 
-
 # QA core (now alias- & course-aware)
 def _answer_question(
     question: str,
@@ -870,9 +856,10 @@ def _answer_question(
 ):
     # widen initial pool when we have a program alias, so the “same program” pages make the candidate set
     topn_local = 120 if alias_url else 40
-    idxs, retrieval_path = _search_chunks(
+    idxs, retrieval_path = search_chunks(
         question, topn=topn_local, k=5, alias_url=alias_url, intent_key=intent_key, course_norm=course_norm
     )
+    top_chunks, retrieval_path, context = get_context(question)
 
     # prefer a same-program, "facty" chunk at the top for generation
     def _url_same_family(u: str, base: Optional[str]) -> bool:
@@ -907,46 +894,31 @@ def _answer_question(
     if not idxs:
         return "I couldn't find relevant information in the catalog.", [], retrieval_path
 
-    # Keep retrieval list, but only feed top 3 chunks to the generator to reduce noise
-    top_for_gen = [(chunk_texts[i], chunk_sources[i]) for i in idxs[:3]]
-
     # Compose a course-aware hint if applicable
     course_hint = ""
     if course_norm and intent_key == "course_info":
         course_hint = f" Focus on credits, prerequisites, and grade mode for {course_norm} if present."
 
-    context = " ".join(text for text, _ in top_for_gen)
-
     # Run the generator
     try:
-        short_prompt = (
-            "Answer the question using ONLY the provided context. "
-            "Start with a short, factual answer (number/date/Yes-No) if possible. "
-            "If the context does not directly answer, reply with \"I don't know.\" "
-            "Do not restate the question." + course_hint +
-            "\n\nContext:\n" + context + f"\n\nQuestion: {question}\nAnswer:"
-        )
-        long_prompt = (
-            "Provide a brief 2–3 sentence explanation using ONLY the provided context. "
-            "Avoid tautologies or generic definitions. "
-            "If the context lacks the info, say you don't know." + course_hint +
-            "\n\nContext:\n" + context + f"\n\nQuestion: {question}\nAnswer:"
-        )
-        short_result = qa_pipeline(short_prompt, max_new_tokens=32)
-        long_result = qa_pipeline(long_prompt, max_new_tokens=128)
-        answer = _combine_answers(short_result[0]["generated_text"], long_result[0]["generated_text"])
+        long_result = qa_pipeline(
+            get_prompt(question + course_hint, context),
+            max_new_tokens=128,
+            repetition_penalty=1.2,
+            no_repeat_ngram_size=2)
+        answer = long_result[0]["generated_text"].strip()
     except Exception as exc:
         return f"ERROR running local model: {exc}", [], retrieval_path
 
-    # Regex fallbacks if model punts
+   # Regex fallbacks if model punts
     def _looks_idk(a: str) -> bool:
         return bool(re.search(r"\bi don'?t know\b", (a or "").lower()))
 
-    enriched_sources = _wrap_sources_with_text_fragments(top_for_gen, question)
+    enriched_sources = _wrap_sources_with_text_fragments(top_chunks, question)
 
     # degree_credits fallback
     if intent_key == "degree_credits":
-        hit = _extract_best_credits(top_for_gen)
+        hit = _extract_best_credits(top_chunks)
         if hit:
             _, src, num = hit
             idk = _looks_idk(answer)
@@ -954,7 +926,7 @@ def _answer_question(
                 answer = f"{num}."
 
     # GRE fallback (when the question mentions GRE/GMAT)
-    gre_hit = _extract_gre_requirement(question, top_for_gen)
+    gre_hit = _extract_gre_requirement(question, top_chunks)
     if gre_hit:
         _, _, yesno = gre_hit
         if _looks_idk(answer):
@@ -962,7 +934,7 @@ def _answer_question(
 
     # Course fallbacks
     if course_norm and intent_key == "course_info":
-        cf = _extract_course_fallbacks(top_for_gen)
+        cf = _extract_course_fallbacks(top_chunks)
         need_help = _looks_idk(answer) or (not re.search(r"credits|prereq|grade", answer, re.I))
         if need_help and any(cf.values()):
             parts = []
@@ -976,8 +948,7 @@ def _answer_question(
                 answer = ". ".join(parts) + "."
 
     # Build citations (use all 5 retrieved, with text fragments from top 3)
-    full_top = [(chunk_texts[i], chunk_sources[i]) for i in idxs]
-    enriched_all = enriched_sources + [src for _, src in full_top[3:]]
+    enriched_all = enriched_sources + [src for _, src in top_chunks[3:]]
 
     seen = set()
     citation_lines = []
@@ -992,6 +963,31 @@ def _answer_question(
         citation_lines.append(line)
 
     return answer, citation_lines, retrieval_path
+
+def get_context(question):
+    idxs, retrieval_path = search_chunks(question, topn=40, k=5)
+    if not idxs:
+        return UNKNOWN, [], retrieval_path
+    top_chunks = [(chunk_texts[i], chunk_sources[i]) for i in idxs]
+    # Create context with source attribution and new lines
+    context_parts = []
+    for i, (text, source) in enumerate(top_chunks):
+        title = source.get('title', 'Source')
+        # Don't use hierarchial title for context, confuses the ai
+        title = title.split(' - ')[-1] if ' - ' in title else title
+        context_parts.append(f"{title}: {text}")
+    return top_chunks, retrieval_path, "\n\n".join(context_parts)
+
+def get_prompt(question, context):
+    return (
+        "Using ONLY the provided context, write a concise explanation in exactly 2–3 complete sentences.\n"
+        "Mention requirements, deadlines, or procedures if they are present.\n"
+        f"If the context is insufficient, output exactly: {UNKNOWN}\n"
+        "Do not include assumptions, examples, or general knowledge beyond the context.\n\n"
+        f"Context: {context}\n\n"
+        f"Question: {question}\n\n"
+        f"Detailed explanation:"
+    )
 
 # cache key includes alias_url + intent + course_norm to avoid mixing scoped answers
 @lru_cache(maxsize=128)

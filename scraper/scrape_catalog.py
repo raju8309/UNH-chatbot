@@ -1,5 +1,5 @@
 import requests
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, NavigableString, Comment
 import json
 from urllib.parse import urljoin, urlparse
 import openpyxl
@@ -10,7 +10,12 @@ BASE_URL = "https://catalog.unh.edu"
 SITEMAP_FILE = "graduate_catalog.xlsx"   # run from project root; or change to "scraper/graduate_catalog.xlsx"
 OUTPUT_FILE = "unh_catalog.json"         # output will be created alongside the script's CWD
 ALLOWED_DOMAIN = "catalog.unh.edu"
-TAB_IDS = ["#overviewtext", "#requirementstext", "#coursetext"]
+# all program + course tabs
+TAB_IDS = [
+    "text", "overviewtext", "programstext", "coursetext",
+    "coursestext", "facultytext", "requirementstext",
+    "descriptiontext", "requirementstext", "acceleratedmasterstext",
+    "studentlearningoutcomestext"]
 
 # ---------- helpers ----------
 def clean_text(tag_or_str):
@@ -116,7 +121,17 @@ def fetch_and_parse(url):
     try:
         resp = requests.get(url, timeout=30)
         resp.raise_for_status()
-        return BeautifulSoup(resp.text, "lxml")
+        soup = BeautifulSoup(resp.text, "lxml")
+        # preprocess divs to wrap floating text in <p> tags
+        # specifically happens in course pages, but could be elsewhere too
+        for element in soup.find_all("div"):
+            for child in list(element.children):
+                # NavigableString can be a comment, which we don't want... course pages have comments
+                if isinstance(child, NavigableString) and not isinstance(child, Comment) and child.strip():
+                    new_p = soup.new_tag("p")
+                    new_p.string = child.strip()
+                    child.replace_with(new_p)
+        return soup
     except Exception as e:
         print(f"[error] could not download {url}: {e}")
         return None
@@ -352,37 +367,48 @@ for row in rows:
     root = {"type": "root", "content": []}
     stack = [(1, root)]
 
+    # create a page section
+    push_section(2, full_title, stack, URL)
+
     # parse main page content
     for el in flow:
         lvl = heading_level(el.name)
         if lvl:
             heading_title = clean_text(el)
-            push_section(lvl, heading_title, stack, URL)
+            push_section(lvl + 1, heading_title, stack, URL)
         else:
             if el.name == "p":
                 add_paragraph(el, stack, URL)
             elif el.name in ("ul", "ol"):
                 add_list(el, stack, URL)
 
-    # fetch program/course tabs (same page, with anchors)
-    if "programs-study" in URL:
-        for tab_id in TAB_IDS:
-            tab_url = URL + tab_id
-            tab_soup = fetch_and_parse(tab_url)
-            if not tab_soup:
-                continue
-            tab_main = tab_soup.find("main") or tab_soup.find("article") or tab_soup.find("div", id="content") or tab_soup
-            tab_flow = tab_main.select("h2, h3, h4, p, ul, ol")
-            for el in tab_flow:
-                lvl = heading_level(el.name)
-                if lvl:
-                    heading_title = clean_text(el)
-                    push_section(lvl, heading_title, stack, tab_url)
-                else:
-                    if el.name == "p":
-                        add_paragraph(el, stack, tab_url)
-                    elif el.name in ("ul", "ol"):
-                        add_list(el, stack, tab_url)
+    # fetch program/course tabs
+    seen_panel_ids = set()
+    for tab_id in TAB_IDS:
+        if tab_id in seen_panel_ids:
+            continue
+        panel = soup.find(id=tab_id)
+        if not panel:
+            continue
+
+        seen_panel_ids.add(tab_id)
+        tab_flow = panel.select("h2, h3, h4, p, ul, ol")
+        panel_url = f"{URL}#{tab_id}"
+
+        # Push a new section so tab content is NOT made top-level; keeps
+        # content contained, to help bot not mix up between programs/courses
+        # Finds the current deepest level in the stack and adds tab at next level
+        push_section(3, tab_id, stack, panel_url)
+
+        for el in tab_flow:
+            lvl = heading_level(el.name)
+            if lvl:
+                push_section(lvl + 2, clean_text(el), stack, panel_url)
+            else:
+                if el.name == "p":
+                    add_paragraph(el, stack, panel_url)
+                elif el.name in ("ul", "ol"):
+                    add_list(el, stack, panel_url)
 
     sections = [normalize(n) for n in root["content"] if n.get("type") == "section"]
 
