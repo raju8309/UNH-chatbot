@@ -19,6 +19,9 @@ COPY scraper/ ./scraper/
 # Copy frontend folder
 COPY frontend/ ./frontend/
 
+# Copy automation testing folder
+COPY automation_testing/ ./automation_testing/
+
 # Install Python dependencies
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt

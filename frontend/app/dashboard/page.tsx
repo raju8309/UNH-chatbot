@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 
 // Utility functions and components
 const formatRunIdDate = (runId: string) => {
@@ -72,23 +73,111 @@ const getCategoryBadgeClasses = (category: string) => {
   return colors[hashCode(category) % colors.length];
 };
 
+const base_doc_id = (url: string) => {
+  if (!url) return '';
+  try {
+    const urlObj = new URL(url);
+    const pathParts = urlObj.pathname.split('/').filter(part => part);
+    return pathParts[pathParts.length - 1] || 'unknown';
+  } catch {
+    return 'unknown';
+  }
+};
+
+interface RetrievedDocumentsProps {
+  retrievedIds: any[];
+  title?: string;
+}
+
+const RetrievedDocuments: React.FC<RetrievedDocumentsProps> = ({ retrievedIds, title = "Retrieved Documents:" }) => {
+  const [hoveredItem, setHoveredItem] = useState<{ item: any; position: { x: number; y: number } } | null>(null);
+
+  const handleMouseEnter = (item: any, event: React.MouseEvent) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    setHoveredItem({
+      item,
+      position: {
+        x: rect.left,
+        y: rect.top - 10 // Position above the element
+      }
+    });
+  };
+
+  const handleMouseLeave = () => {
+    setHoveredItem(null);
+  };
+
+  return (
+    <div className="mt-4">
+      <h4 className="font-semibold text-gray-800 mb-2">{title}</h4>
+      <div className="flex flex-wrap gap-2">
+        {retrievedIds.map((item: any, idx: number) => (
+          <span
+            key={idx}
+            className="bg-gray-100 text-gray-700 px-2 py-1 rounded text-sm cursor-help"
+            onMouseEnter={(e) => handleMouseEnter(item, e)}
+            onMouseLeave={handleMouseLeave}
+          >
+            {base_doc_id(item.url)}#{item.idx}
+          </span>
+        ))}
+      </div>
+
+      {/* Portal for tooltip */}
+      {hoveredItem && createPortal(
+        <div 
+          className="fixed bg-white text-black border-2 border-[var(--unh-blue)] text-xs rounded py-3 px-4 z-[9999] min-w-96 max-w-lg shadow-lg pointer-events-none"
+          style={{
+            left: hoveredItem.position.x,
+            top: hoveredItem.position.y,
+            transform: 'translateY(-100%)'
+          }}
+        >
+          <div className="space-y-2">
+            <div><strong>Rank:</strong> {hoveredItem.item.rank}</div>
+            <div><strong>Score:</strong> {hoveredItem.item.score?.toFixed(3)}</div>
+            <div><strong>Title:</strong> <span className="break-words">{hoveredItem.item.title}</span></div>
+            <div><strong>URL:</strong> <span className="break-all text-xs">{hoveredItem.item.url}</span></div>
+            <div><strong>Tier:</strong> {hoveredItem.item.tier_name}</div>
+            {hoveredItem.item.text && (
+              <div><strong>Text:</strong> <span className="break-words">{hoveredItem.item.text.length > 300 ? `${hoveredItem.item.text.substring(0, 300)}...` : hoveredItem.item.text}</span></div>
+            )}
+          </div>
+        </div>,
+        document.body
+      )}
+    </div>
+  );
+};
+
 interface MetricCardProps {
   title: string;
   value: number;
-  color: string;
   subtitle: string;
   isPercentage?: boolean;
 }
 
-const MetricCard: React.FC<MetricCardProps> = ({ title, value, color, subtitle, isPercentage = true }) => (
-  <div className="bg-gray-50 rounded-lg shadow-sm p-4">
-    <h3 className="text-sm font-semibold text-gray-700 mb-2">{title}</h3>
-    <p className={`text-2xl font-bold ${color}`}>
-      {isPercentage ? (value * 100).toFixed(1) + '%' : value.toFixed(1)}
-    </p>
-    <p className="text-xs text-gray-500 mt-1">{subtitle}</p>
-  </div>
-);
+const MetricCard: React.FC<MetricCardProps> = ({ title, value, subtitle, isPercentage = true }) => {
+  // Determine color based on performance thresholds
+  const getPerformanceColor = (value: number) => {
+    const percentage = isPercentage ? value * 100 : value;
+    if (percentage >= 70) return 'text-green-600';
+    if (percentage >= 50) return 'text-yellow-600';
+    return 'text-red-600';
+  };
+
+  const dynamicColor = getPerformanceColor(value);
+
+  return (
+    <div className="bg-gray-50 rounded-lg shadow-sm p-4">
+      <h3 className="text-sm font-semibold text-gray-700 mb-2">{title}</h3>
+      <p className={`text-2xl font-bold ${dynamicColor}`}>
+        {isPercentage ? (value * 100).toFixed(1) + '%' : value.toFixed(1)}
+      </p>
+      <p className="text-xs text-gray-500 mt-1">{subtitle}</p>
+    </div>
+  );
+};
 
 interface CircularProgressProps {
   value: number;
@@ -96,60 +185,73 @@ interface CircularProgressProps {
   label: string;
 }
 
-const CircularProgress: React.FC<CircularProgressProps> = ({ value, color, label }) => (
-  <div className="text-center">
-    <div className="relative inline-flex items-center justify-center w-16 h-16">
-      <svg className="w-16 h-16 transform -rotate-90" viewBox="0 0 36 36">
-        <path
-          d="m18,2.0845 a 15.9155,15.9155 0 0,1 0,31.831 a 15.9155,15.9155 0 0,1 0,-31.831"
-          fill="none"
-          stroke="#e5e7eb"
-          strokeWidth="2"
-        />
-        <path
-          d="m18,2.0845 a 15.9155,15.9155 0 0,1 0,31.831 a 15.9155,15.9155 0 0,1 0,-31.831"
-          fill="none"
-          stroke={color}
-          strokeWidth="2"
-          strokeDasharray={`${value * 100}, 100`}
-        />
-      </svg>
-      <span className={`absolute text-sm font-bold`} style={{ color }}>
-        {(value * 100).toFixed(0)}%
-      </span>
+const CircularProgress: React.FC<CircularProgressProps> = ({ value, color, label }) => {
+  // Determine color based on performance thresholds
+  const getPerformanceColor = (value: number) => {
+    const percentage = value * 100;
+    if (percentage >= 70) return '#059669'; // green-600
+    if (percentage >= 50) return '#d97706'; // yellow-600
+    return '#dc2626'; // red-600
+  };
+
+  const dynamicColor = getPerformanceColor(value);
+
+  return (
+    <div className="text-center">
+      <div className="relative inline-flex items-center justify-center w-16 h-16">
+        <svg className="w-16 h-16 transform -rotate-90" viewBox="0 0 36 36">
+          <path
+            d="m18,2.0845 a 15.9155,15.9155 0 0,1 0,31.831 a 15.9155,15.9155 0 0,1 0,-31.831"
+            fill="none"
+            stroke="#e5e7eb"
+            strokeWidth="2"
+          />
+          <path
+            d="m18,2.0845 a 15.9155,15.9155 0 0,1 0,31.831 a 15.9155,15.9155 0 0,1 0,-31.831"
+            fill="none"
+            stroke={dynamicColor}
+            strokeWidth="2"
+            strokeDasharray={`${value * 100}, 100`}
+          />
+        </svg>
+        <span className={`absolute text-sm font-bold`} style={{ color: dynamicColor }}>
+          {(value * 100).toFixed(0)}%
+        </span>
+      </div>
+      <div className="text-xs text-gray-600 mt-1">{label}</div>
     </div>
-    <div className="text-xs text-gray-600 mt-1">{label}</div>
-  </div>
-);
+  );
+};
 
 interface MetricsSummaryProps {
   summary: any;
 }
 
 const MetricsSummary: React.FC<MetricsSummaryProps> = ({ summary }) => (
-  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
     <MetricCard 
       title="BERTscore F1" 
       value={summary.bertscore_f1} 
-      color="text-blue-600" 
       subtitle="Semantic similarity" 
     />
     <MetricCard 
       title="SBERT Cosine" 
       value={summary.sbert_cosine} 
-      color="text-green-600" 
       subtitle="Sentence similarity" 
+    />
+    <MetricCard 
+      title="SBERT Chunk" 
+      value={summary.sbert_cosine_chunk} 
+      subtitle="Chunk similarity" 
     />
     <MetricCard 
       title="Recall@1" 
       value={summary["recall@1"]} 
-      color="text-purple-600" 
       subtitle="Top result accuracy" 
     />
     <MetricCard 
       title="NDCG@3" 
       value={summary["ndcg@3"]} 
-      color="text-orange-600" 
       subtitle="Ranking quality" 
     />
   </div>
@@ -163,9 +265,9 @@ const NuggetMetrics: React.FC<NuggetMetricsProps> = ({ metrics }) => (
   <div className="bg-gray-50 rounded-lg shadow-sm p-4 overflow-hidden">
     <h5 className="text-lg font-bold text-gray-800 mb-4">Nugget Metrics</h5>
     <div className="flex justify-around items-center">
-      <CircularProgress value={metrics.nugget_precision} color="#059669" label="Precision" />
-      <CircularProgress value={metrics.nugget_recall} color="#dc2626" label="Recall" />
-      <CircularProgress value={metrics.nugget_f1} color="#2563eb" label="F1 Score" />
+      <CircularProgress value={metrics.nugget_precision} color="" label="Precision" />
+      <CircularProgress value={metrics.nugget_recall} color="" label="Recall" />
+      <CircularProgress value={metrics.nugget_f1} color="" label="F1 Score" />
     </div>
   </div>
 );
@@ -178,9 +280,9 @@ const RankingMetrics: React.FC<RankingMetricsProps> = ({ metrics }) => (
   <div className="bg-gray-50 rounded-lg shadow-sm p-4 overflow-hidden">
     <h5 className="text-lg font-bold text-gray-800 mb-4">Ranking Performance</h5>
     <div className="flex justify-around items-center">
-      <CircularProgress value={metrics["recall@3"]} color="#059669" label="Recall@3" />
-      <CircularProgress value={metrics["recall@5"]} color="#059669" label="Recall@5" />
-      <CircularProgress value={metrics["ndcg@5"]} color="#7c3aed" label="NDCG@5" />
+      <CircularProgress value={metrics["recall@3"]} color="" label="Recall@3" />
+      <CircularProgress value={metrics["recall@5"]} color="" label="Recall@5" />
+      <CircularProgress value={metrics["ndcg@5"]} color="" label="NDCG@5" />
     </div>
   </div>
 );
@@ -189,7 +291,6 @@ interface ComparisonMetricCardProps {
   title: string;
   value1: number;
   value2: number;
-  color: string;
   subtitle: string;
   isPercentage?: boolean;
   runNumber1?: number;
@@ -197,7 +298,7 @@ interface ComparisonMetricCardProps {
 }
 
 const ComparisonMetricCard: React.FC<ComparisonMetricCardProps> = ({ 
-  title, value1, value2, color, subtitle, isPercentage = true, runNumber1, runNumber2 
+  title, value1, value2, subtitle, isPercentage = true, runNumber1, runNumber2 
 }) => {
   // Convert to display values first if percentage
   const displayValue1 = isPercentage ? value1 * 100 : value1;
@@ -207,19 +308,30 @@ const ComparisonMetricCard: React.FC<ComparisonMetricCardProps> = ({
   const absoluteDiff = displayValue2 - displayValue1;
   const formatValue = (val: number) => isPercentage ? (val * 100).toFixed(1) + '%' : val.toFixed(1);
   
+  // Determine color based on performance thresholds
+  const getPerformanceColor = (value: number) => {
+    const percentage = isPercentage ? value * 100 : value;
+    if (percentage >= 70) return 'text-green-600';
+    if (percentage >= 50) return 'text-yellow-600';
+    return 'text-red-600';
+  };
+
+  const color1 = getPerformanceColor(value1);
+  const color2 = getPerformanceColor(value2);
+  
   return (
     <div className="bg-gray-50 rounded-lg shadow-sm p-4">
       <h3 className="text-sm font-semibold text-gray-700 mb-2">{title}</h3>
       <div className="flex items-center justify-between mb-2">
         <div className="text-center flex-1">
-          <p className={`text-xl font-bold ${color}`}>{formatValue(value1)}</p>
+          <p className={`text-xl font-bold ${color1}`}>{formatValue(value1)}</p>
           <p className="text-xs text-gray-500">Test Run #{runNumber1 || 1}</p>
         </div>
         <div className="px-2">
           <span className="text-gray-400">vs</span>
         </div>
         <div className="text-center flex-1">
-          <p className={`text-xl font-bold ${color}`}>{formatValue(value2)}</p>
+          <p className={`text-xl font-bold ${color2}`}>{formatValue(value2)}</p>
           <p className="text-xs text-gray-500">Test Run #{runNumber2 || 2}</p>
         </div>
       </div>
@@ -243,12 +355,11 @@ interface ComparisonSummaryProps {
 }
 
 const ComparisonSummary: React.FC<ComparisonSummaryProps> = ({ summary1, summary2, runNumber1, runNumber2 }) => (
-  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
     <ComparisonMetricCard 
       title="BERTscore F1" 
       value1={summary1.bertscore_f1} 
       value2={summary2.bertscore_f1}
-      color="text-blue-600" 
       subtitle="Semantic similarity" 
       runNumber1={runNumber1}
       runNumber2={runNumber2}
@@ -257,8 +368,15 @@ const ComparisonSummary: React.FC<ComparisonSummaryProps> = ({ summary1, summary
       title="SBERT Cosine" 
       value1={summary1.sbert_cosine} 
       value2={summary2.sbert_cosine}
-      color="text-green-600" 
       subtitle="Sentence similarity" 
+      runNumber1={runNumber1}
+      runNumber2={runNumber2}
+    />
+    <ComparisonMetricCard 
+      title="SBERT Chunk" 
+      value1={summary1.sbert_cosine_chunk} 
+      value2={summary2.sbert_cosine_chunk}
+      subtitle="Chunk similarity" 
       runNumber1={runNumber1}
       runNumber2={runNumber2}
     />
@@ -266,7 +384,6 @@ const ComparisonSummary: React.FC<ComparisonSummaryProps> = ({ summary1, summary
       title="Recall@1" 
       value1={summary1["recall@1"]} 
       value2={summary2["recall@1"]}
-      color="text-purple-600" 
       subtitle="Top result accuracy" 
       runNumber1={runNumber1}
       runNumber2={runNumber2}
@@ -275,7 +392,6 @@ const ComparisonSummary: React.FC<ComparisonSummaryProps> = ({ summary1, summary
       title="NDCG@3" 
       value1={summary1["ndcg@3"]} 
       value2={summary2["ndcg@3"]}
-      color="text-orange-600" 
       subtitle="Ranking quality" 
       runNumber1={runNumber1}
       runNumber2={runNumber2}
@@ -296,6 +412,14 @@ const ComparisonNuggetMetrics: React.FC<ComparisonNuggetMetricsProps> = ({ metri
     return displayVal2 - displayVal1;
   };
 
+  // Determine color based on performance thresholds
+  const getPerformanceColor = (value: number) => {
+    const percentage = value * 100;
+    if (percentage >= 70) return 'text-green-600';
+    if (percentage >= 50) return 'text-yellow-600';
+    return 'text-red-600';
+  };
+
   return (
     <div className="bg-gray-50 rounded-lg shadow-sm p-4 overflow-hidden">
       <h5 className="text-lg font-bold text-gray-800 mb-4">Nugget Metrics</h5>
@@ -303,9 +427,9 @@ const ComparisonNuggetMetrics: React.FC<ComparisonNuggetMetricsProps> = ({ metri
         <div className="flex items-center justify-between">
           <span className="text-sm font-medium text-gray-700 w-20">Precision</span>
           <div className="flex items-center flex-1 justify-center gap-4">
-            <span className="text-lg font-bold text-green-600">{(metrics1.nugget_precision * 100).toFixed(1)}%</span>
+            <span className={`text-lg font-bold ${getPerformanceColor(metrics1.nugget_precision)}`}>{(metrics1.nugget_precision * 100).toFixed(1)}%</span>
             <span className="text-xs text-gray-500">vs</span>
-            <span className="text-lg font-bold text-green-600">{(metrics2.nugget_precision * 100).toFixed(1)}%</span>
+            <span className={`text-lg font-bold ${getPerformanceColor(metrics2.nugget_precision)}`}>{(metrics2.nugget_precision * 100).toFixed(1)}%</span>
           </div>
           <span className={`text-sm font-medium w-20 text-right ${
             calculatePercentDiff(metrics1.nugget_precision, metrics2.nugget_precision) > 0 
@@ -319,9 +443,9 @@ const ComparisonNuggetMetrics: React.FC<ComparisonNuggetMetricsProps> = ({ metri
         <div className="flex items-center justify-between">
           <span className="text-sm font-medium text-gray-700 w-20">Recall</span>
           <div className="flex items-center flex-1 justify-center gap-4">
-            <span className="text-lg font-bold text-red-600">{(metrics1.nugget_recall * 100).toFixed(1)}%</span>
+            <span className={`text-lg font-bold ${getPerformanceColor(metrics1.nugget_recall)}`}>{(metrics1.nugget_recall * 100).toFixed(1)}%</span>
             <span className="text-xs text-gray-500">vs</span>
-            <span className="text-lg font-bold text-red-600">{(metrics2.nugget_recall * 100).toFixed(1)}%</span>
+            <span className={`text-lg font-bold ${getPerformanceColor(metrics2.nugget_recall)}`}>{(metrics2.nugget_recall * 100).toFixed(1)}%</span>
           </div>
           <span className={`text-sm font-medium w-20 text-right ${
             calculatePercentDiff(metrics1.nugget_recall, metrics2.nugget_recall) > 0 
@@ -335,9 +459,9 @@ const ComparisonNuggetMetrics: React.FC<ComparisonNuggetMetricsProps> = ({ metri
         <div className="flex items-center justify-between">
           <span className="text-sm font-medium text-gray-700 w-20">F1 Score</span>
           <div className="flex items-center flex-1 justify-center gap-4">
-            <span className="text-lg font-bold text-blue-600">{(metrics1.nugget_f1 * 100).toFixed(1)}%</span>
+            <span className={`text-lg font-bold ${getPerformanceColor(metrics1.nugget_f1)}`}>{(metrics1.nugget_f1 * 100).toFixed(1)}%</span>
             <span className="text-xs text-gray-500">vs</span>
-            <span className="text-lg font-bold text-blue-600">{(metrics2.nugget_f1 * 100).toFixed(1)}%</span>
+            <span className={`text-lg font-bold ${getPerformanceColor(metrics2.nugget_f1)}`}>{(metrics2.nugget_f1 * 100).toFixed(1)}%</span>
           </div>
           <span className={`text-sm font-medium w-20 text-right ${
             calculatePercentDiff(metrics1.nugget_f1, metrics2.nugget_f1) > 0 
@@ -366,6 +490,14 @@ const ComparisonRankingMetrics: React.FC<ComparisonRankingMetricsProps> = ({ met
     return displayVal2 - displayVal1;
   };
 
+  // Determine color based on performance thresholds
+  const getPerformanceColor = (value: number) => {
+    const percentage = value * 100;
+    if (percentage >= 70) return 'text-green-600';
+    if (percentage >= 50) return 'text-yellow-600';
+    return 'text-red-600';
+  };
+
   return (
     <div className="bg-gray-50 rounded-lg shadow-sm p-4 overflow-hidden">
       <h5 className="text-lg font-bold text-gray-800 mb-4">Ranking Performance</h5>
@@ -373,9 +505,9 @@ const ComparisonRankingMetrics: React.FC<ComparisonRankingMetricsProps> = ({ met
         <div className="flex items-center justify-between">
           <span className="text-sm font-medium text-gray-700 w-20">Recall@3</span>
           <div className="flex items-center flex-1 justify-center gap-4">
-            <span className="text-lg font-bold text-green-600">{(metrics1["recall@3"] * 100).toFixed(1)}%</span>
+            <span className={`text-lg font-bold ${getPerformanceColor(metrics1["recall@3"])}`}>{(metrics1["recall@3"] * 100).toFixed(1)}%</span>
             <span className="text-xs text-gray-500">vs</span>
-            <span className="text-lg font-bold text-green-600">{(metrics2["recall@3"] * 100).toFixed(1)}%</span>
+            <span className={`text-lg font-bold ${getPerformanceColor(metrics2["recall@3"])}`}>{(metrics2["recall@3"] * 100).toFixed(1)}%</span>
           </div>
           <span className={`text-sm font-medium w-20 text-right ${
             calculatePercentDiff(metrics1["recall@3"], metrics2["recall@3"]) > 0 
@@ -389,9 +521,9 @@ const ComparisonRankingMetrics: React.FC<ComparisonRankingMetricsProps> = ({ met
         <div className="flex items-center justify-between">
           <span className="text-sm font-medium text-gray-700 w-20">Recall@5</span>
           <div className="flex items-center flex-1 justify-center gap-4">
-            <span className="text-lg font-bold text-green-600">{(metrics1["recall@5"] * 100).toFixed(1)}%</span>
+            <span className={`text-lg font-bold ${getPerformanceColor(metrics1["recall@5"])}`}>{(metrics1["recall@5"] * 100).toFixed(1)}%</span>
             <span className="text-xs text-gray-500">vs</span>
-            <span className="text-lg font-bold text-green-600">{(metrics2["recall@5"] * 100).toFixed(1)}%</span>
+            <span className={`text-lg font-bold ${getPerformanceColor(metrics2["recall@5"])}`}>{(metrics2["recall@5"] * 100).toFixed(1)}%</span>
           </div>
           <span className={`text-sm font-medium w-20 text-right ${
             calculatePercentDiff(metrics1["recall@5"], metrics2["recall@5"]) > 0 
@@ -405,9 +537,9 @@ const ComparisonRankingMetrics: React.FC<ComparisonRankingMetricsProps> = ({ met
         <div className="flex items-center justify-between">
           <span className="text-sm font-medium text-gray-700 w-20">NDCG@5</span>
           <div className="flex items-center flex-1 justify-center gap-4">
-            <span className="text-lg font-bold text-purple-600">{(metrics1["ndcg@5"] * 100).toFixed(1)}%</span>
+            <span className={`text-lg font-bold ${getPerformanceColor(metrics1["ndcg@5"])}`}>{(metrics1["ndcg@5"] * 100).toFixed(1)}%</span>
             <span className="text-xs text-gray-500">vs</span>
-            <span className="text-lg font-bold text-purple-600">{(metrics2["ndcg@5"] * 100).toFixed(1)}%</span>
+            <span className={`text-lg font-bold ${getPerformanceColor(metrics2["ndcg@5"])}`}>{(metrics2["ndcg@5"] * 100).toFixed(1)}%</span>
           </div>
           <span className={`text-sm font-medium w-20 text-right ${
             calculatePercentDiff(metrics1["ndcg@5"], metrics2["ndcg@5"]) > 0 
@@ -695,25 +827,21 @@ export default function TestResultsPage() {
                       <MetricCard 
                         title="SBERT Cosine" 
                         value={testRun.summary.sbert_cosine} 
-                        color="text-green-600" 
                         subtitle="Sentence similarity" 
                       />
                       <MetricCard 
                         title="Recall@1" 
                         value={testRun.summary["recall@1"]} 
-                        color="text-purple-600" 
                         subtitle="Top result accuracy" 
                       />
                       <MetricCard 
                         title="NDCG@3" 
                         value={testRun.summary["ndcg@3"]} 
-                        color="text-orange-600" 
                         subtitle="Ranking quality" 
                       />
                       <MetricCard 
                         title="Nugget F1" 
                         value={testRun.summary.nugget_f1} 
-                        color="text-red-600" 
                         subtitle="Nugget precision & recall" 
                       />
                     </div>
@@ -920,25 +1048,17 @@ export default function TestResultsPage() {
 
                                   <div className="grid md:grid-cols-2 gap-6 mb-4">
                                     <div>
-                                      <h4 className="font-semibold text-gray-800 mb-2">Test Run #{testData?.test_runs ? getTestRunDisplayNumber(testData.test_runs, selectedReports[0].run_id) : 1} - Retrieved Documents:</h4>
-                                      <div className="flex flex-wrap gap-2">
-                                        {pred1.retrieved_ids.map((docId: string, idx: number) => (
-                                          <span key={idx} className="bg-gray-100 text-gray-700 px-2 py-1 rounded text-sm">
-                                            {docId}
-                                          </span>
-                                        ))}
-                                      </div>
+                                      <RetrievedDocuments 
+                                        retrievedIds={pred1.retrieved_ids} 
+                                        title={`Test Run #${testData?.test_runs ? getTestRunDisplayNumber(testData.test_runs, selectedReports[0].run_id) : 1} - Retrieved Documents:`}
+                                      />
                                     </div>
 
                                     <div>
-                                      <h4 className="font-semibold text-gray-800 mb-2">Test Run #{testData?.test_runs ? getTestRunDisplayNumber(testData.test_runs, selectedReports[1].run_id) : 2} - Retrieved Documents:</h4>
-                                      <div className="flex flex-wrap gap-2">
-                                        {pred2.retrieved_ids.map((docId: string, idx: number) => (
-                                          <span key={idx} className="bg-gray-100 text-gray-700 px-2 py-1 rounded text-sm">
-                                            {docId}
-                                          </span>
-                                        ))}
-                                      </div>
+                                      <RetrievedDocuments 
+                                        retrievedIds={pred2.retrieved_ids} 
+                                        title={`Test Run #${testData?.test_runs ? getTestRunDisplayNumber(testData.test_runs, selectedReports[1].run_id) : 2} - Retrieved Documents:`}
+                                      />
                                     </div>
                                   </div>
 
@@ -1152,13 +1272,7 @@ export default function TestResultsPage() {
 
                                 <div className="mt-4">
                                   <h4 className="font-semibold text-gray-800 mb-2">Retrieved Documents:</h4>
-                                  <div className="flex flex-wrap gap-2">
-                                    {pred.retrieved_ids.map((docId: string, idx: number) => (
-                                      <span key={idx} className="bg-gray-100 text-gray-700 px-2 py-1 rounded text-sm">
-                                        {docId}
-                                      </span>
-                                    ))}
-                                  </div>
+                                  <RetrievedDocuments retrievedIds={pred.retrieved_ids} />
                                 </div>
 
                                 {pred.nuggets && pred.nuggets.length > 0 && (
