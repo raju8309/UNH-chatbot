@@ -4,14 +4,14 @@ GENERIC_RESPONSES = {
     # greetings
     "hi": "Hello.",
     "hello": "Hello.",
-    "hey": "Hello.",
-    "good morning": "Good morning. How can I assist you?",
-    "good afternoon": "Good afternoon. What can I help you with?",
-    "good evening": "Good evening. How may I assist you?",
-    "hi there": "hi",
-    "hello there": "hello",
-    "helo": "hello",
-    "hey there": "hey",
+    "hey": "Hi.",
+    "good morning": "Good morning. How can I assist you today?",
+    "good afternoon": "Good afternoon. How can I help you today?",
+    "good evening": "Good evening. How may I assist you today?",
+    "hi there": "Hello.",
+    "hello there": "Hello.",
+    "helo": "Hello.",
+    "hey there": "Hi.",
 
     # farewells
     "bye": "Goodbye. Have a great day.",
@@ -19,7 +19,7 @@ GENERIC_RESPONSES = {
     "see you": "Goodbye.",
     "see ya": "Goodbye.",
     "take care": "Goodbye.",
-    "cya": "bye",
+    "cya": "Goodbye.",
 
     # gratitude
     "thank you": "You're welcome.",
@@ -28,18 +28,20 @@ GENERIC_RESPONSES = {
     "ty": "You're welcome.",
     "thx": "You're welcome.",
     "appreciate it": "You're welcome.",
+    "thank you very much": "You're welcome.",
+    "thank you so much": "You're welcome.",
 
     # small talk / identity
     "how are you": "I'm functioning well, thank you for asking.",
-    "who are you": "I'm the UNH Catalog Assistant, here to help you find academic and program information.",
-    "what is your purpose": "I'm designed to answer questions about UNH programs, courses, and admissions.",
-    "what can you do": "I can provide information about programs, courses, requirements, and policies at UNH.",
-    "can you help me": "Certainly. What would you like help with?",
-    "i need help": "Of course. What are you looking for?",
-    "help": "Sure. Please tell me what you’d like to know about UNH.",
-    "not sure": "That’s okay. Could you tell me a bit more about what you’re looking for?",
-    "i don’t know": "No problem. I can help you find out.",
-    "idk": "No problem. I can help you find out.",
+    "who are you": "I'm the UNH Graduate Catalog Assistant, built by the UNH Graduate School to help answer your questions.",
+    "what is your purpose": "I'm designed by the UNH Graduate School to assist with information about graduate programs, courses, and policies.",
+    "what can you do": "I can help you explore the UNH Graduate Catalog, including program details, course information, and graduate policies.",
+    "can you help me": "Certainly. What would you like to know about the UNH Graduate Catalog?",
+    "i need help": "Of course. What are you looking for in the UNH Graduate Catalog?",
+    "help": "Sure. Please tell me what you’d like to know about the UNH Graduate Catalog.",
+    "not sure": "That’s okay. Could you tell me a bit more about what you’re trying to find in the Graduate Catalog?",
+    "i don’t know": "No problem. I can help you find the right information in the UNH Graduate Catalog.",
+    "idk": "No problem. I can help you find the right information in the UNH Graduate Catalog.",
 
     # confirmation / clarification
     "what do you mean": "Let me clarify that for you.",
@@ -68,8 +70,6 @@ GENERIC_RESPONSES = {
     # courtesy / social
     "nice to meet you": "Nice to meet you as well.",
     "pleased to meet you": "Nice to meet you.",
-    "thank you very much": "You're welcome.",
-    "thank you so much": "You're welcome.",
 }
 
 def normalize_text(text: str) -> str:
