@@ -12,10 +12,9 @@ from transformers import (
 from datasets import Dataset
 from sklearn.model_selection import train_test_split
 
-ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "backend"))
+ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT))
 
-import main
 from main import (
     load_retrieval_cfg,
     load_initial_data, 
@@ -28,38 +27,33 @@ def create_training_data():
     """Generate training data using existing retrieval pipeline"""
     training_examples = []
     
-    # Load the gold standard data
-    print("Creating training data from gold.jsonl...")
-    gold_path = ROOT / "automation_testing" / "gold.jsonl"
-    if not gold_path.exists():
-        raise FileNotFoundError(f"Gold file not found: {gold_path}")
+    # Load the training data
+    print("Creating training data from train.json...")
+    train_set = ROOT / "train" / "train.json"
+    if not train_set.exists():
+        raise FileNotFoundError(f"Train file not found: {train_set}")
+
+    with open(train_set, "r", encoding="utf-8") as f:
+        data = json.load(f)
     
-    with open(gold_path, "r", encoding="utf-8") as f:
-        for line_num, line in enumerate(f, 1):
-            if not line.strip():
-                continue
-                
-            try:
-                record = json.loads(line)
-                question = record["query"]
-                expected_answer = record["reference_answer"]
-                
-                _, _, context = get_context(question)
-                training_examples.append({
-                    "input": get_prompt(question, context),
-                    "output": expected_answer,
-                    "question": question  # For debugging
-                })
-                
-            except json.JSONDecodeError as e:
-                print(f"Error parsing line {line_num}: {e}")
-                continue
-            except KeyError as e:
-                print(f"Missing field in line {line_num}: {e}")
-                continue
-            except Exception as e:
-                print(f"Unexpected error on line {line_num}: {e}")
-                continue
+    for i, record in enumerate(data):
+        try:
+            question = record["query"]
+            _, _, context = get_context(question)
+            training_examples.append({
+                "input": get_prompt(question, context),
+                "output": record["answer"],
+                "question": question
+            })
+        except json.JSONDecodeError as e:
+            print(f"Error parsing record {i}: {e}")
+            continue
+        except KeyError as e:
+            print(f"Missing field in record {i}: {e}")
+            continue
+        except Exception as e:
+            print(f"Unexpected error in record {i}: {e}")
+            continue
     
     print(f"Created {len(training_examples)} training examples")
     return training_examples
@@ -150,7 +144,7 @@ if __name__ == "__main__":
         padding=True
     )
     # Training arguments - optimized for GPU training
-    output_dir = ROOT / "backend" / "models" / "flan-t5-small-finetuned"
+    output_dir = ROOT / "train" / "models" / "flan-t5-small-finetuned"
     # Use GPU-optimized settings if available
     if torch.cuda.is_available():
         train_batch_size = 16     # Larger batch for GPU

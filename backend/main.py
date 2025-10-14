@@ -45,7 +45,6 @@ chunk_sources: List[Dict[str, Any]] = []
 chunk_meta: List[Dict[str, Any]] = []
 
 _LOG_LOCK = threading.Lock()
-_APP_CONFIGURED = False  # guard so we don't add middleware twice
 
 # -----------------------
 # Session store 
@@ -80,7 +79,7 @@ def update_session(session_id: str, **fields: Any) -> None:
 embed_model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
 
 # Load trained model, fallback on default
-trained = Path(__file__).parent / "models" / "flan-t5-small-finetuned"
+trained = Path(__file__).parent / "train" / "models" / "flan-t5-small-finetuned"
 if trained.exists() and (trained / "config.json").exists():
     model = str(trained)
 else:

@@ -8,6 +8,6 @@ __pycache__/
 .DS_Store
 
 /backend/.backend-venv/
-/backend/models/
+/backend/train/models/
 /.model_cache/
 **/__pycache__/
