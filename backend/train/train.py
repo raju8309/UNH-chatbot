@@ -1,6 +1,7 @@
 import json
 import sys
 import torch
+import textwrap
 from pathlib import Path
 from transformers import (
     T5ForConditionalGeneration, 
@@ -26,6 +27,7 @@ from main import (
 def create_training_data():
     """Generate training data using existing retrieval pipeline"""
     training_examples = []
+    verification_data = []
     
     # Load the training data
     print("Creating training data from train.json...")
@@ -45,6 +47,11 @@ def create_training_data():
                 "output": record["answer"],
                 "question": question
             })
+            verification_data.append({
+                "output": record["answer"],
+                "question": question,
+                "context": context
+            })
         except json.JSONDecodeError as e:
             print(f"Error parsing record {i}: {e}")
             continue
@@ -54,6 +61,31 @@ def create_training_data():
         except Exception as e:
             print(f"Unexpected error in record {i}: {e}")
             continue
+
+    verification_file = ROOT / "train" / "verify.txt"
+    with open(verification_file, "w", encoding="utf-8") as f:
+        for i, item in enumerate(verification_data):
+            # Wrap question
+            f.write("QUESTION:\n")
+            wrapped_question = textwrap.fill(item['question'], width=80, initial_indent="", subsequent_indent="")
+            f.write(f"{wrapped_question}\n\n")
+            # Wrap answer
+            f.write("ANSWER:\n")
+            wrapped_answer = textwrap.fill(item['output'], width=80, initial_indent="", subsequent_indent="")
+            f.write(f"{wrapped_answer}\n\n")
+            # Wrap context
+            f.write("CONTEXT:\n")
+            if item['context']:
+                # Split context by double newlines
+                context_entries = item['context'].split('\n\n')
+                for j, entry in enumerate(context_entries):
+                    if entry.strip():
+                        wrapped_entry = textwrap.fill(entry.strip(), width=80, initial_indent="", subsequent_indent="")
+                        f.write(f"[{j+1}] {wrapped_entry}\n\n")
+            else:
+                f.write("No context found\n\n")
+
+            f.write("="*80 + "\n\n")
     
     print(f"Created {len(training_examples)} training examples")
     return training_examples
