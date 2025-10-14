@@ -41,6 +41,7 @@ chunks_embeddings = None
 chunk_texts: List[str] = []
 chunk_sources: List[Dict[str, Any]] = []
 chunk_meta: List[Dict[str, Any]] = []
+CHUNK_NORMS: Optional[np.ndarray] = None
 
 _LOG_LOCK = threading.Lock()
 _APP_CONFIGURED = False  # guard so we don't add middleware twice
@@ -63,6 +64,7 @@ def get_session(session_id: str) -> Dict[str, Any]:
             "last_question": None,
             "last_answer": None,
             "last_retrieval_path": None,
+            "history": [],
             "updated_at": _now_iso(),
         }
     return SESSIONS[session_id]
@@ -70,6 +72,22 @@ def get_session(session_id: str) -> Dict[str, Any]:
 def update_session(session_id: str, **fields: Any) -> None:
     sess = get_session(session_id)
     sess.update(fields)
+    sess["updated_at"] = _now_iso()
+
+# -----------------------
+# Session history helper
+# -----------------------
+def push_history(session_id: str, entry: Dict[str, Any]) -> None:
+    """Append a history entry to the session, capped at 5 most recent turns."""
+    sess = get_session(session_id)
+    hist = sess.get("history")
+    if not isinstance(hist, list):
+        hist = []
+    hist.append(entry)
+    # Cap to last 5 items
+    if len(hist) > 5:
+        hist = hist[-5:]
+    sess["history"] = hist
     sess["updated_at"] = _now_iso()
 
 # -----------------------
@@ -89,7 +107,26 @@ qa_pipeline = pipeline(
     device=-1,
 )
 
+
+# FastAPI app initialization
 app = FastAPI()
+
+
+# Startup event: auto-load config, data, mount frontend if run with uvicorn backend.main:app
+@app.on_event("startup")
+async def startup_event():
+    """
+    Automatically load configuration, catalog data, and mount frontend
+    when running via 'uvicorn backend.main:app'.
+    """
+    try:
+        load_retrieval_cfg()
+        ensure_chat_log_file()
+        load_initial_data()
+        configure_app(app)
+        print("[startup] Configuration, catalog, and frontend loaded successfully.")
+    except Exception as e:
+        print(f"[startup] WARNING: initialization failed: {e}")
 
 
 def load_retrieval_cfg() -> None:
@@ -123,6 +160,19 @@ def load_retrieval_cfg() -> None:
         }
     if "tier4_gate" not in CFG:
         CFG["tier4_gate"] = {"use_embedding": True, "min_title_sim": 0.42, "min_alt_sim": 0.38}
+    # Insert search pool defaults if not present
+    if "search" not in CFG:
+        CFG["search"] = {"topn_base": 40, "topn_with_alias": 80}
+    else:
+        # keep sensible fallbacks if keys are missing
+        CFG["search"]["topn_base"] = CFG["search"].get("topn_base", 40)
+        CFG["search"]["topn_with_alias"] = CFG["search"].get("topn_with_alias", 80)
+    # Diversity / de-dup defaults (config-gated)
+    if "diversity" not in CFG:
+        CFG["diversity"] = {}
+    CFG["diversity"]["enable"] = CFG["diversity"].get("enable", True)
+    CFG["diversity"]["same_url_penalty"] = CFG["diversity"].get("same_url_penalty", 0.9)
+    CFG["diversity"]["same_block_drop"] = CFG["diversity"].get("same_block_drop", True)
     POLICY_TERMS = tuple(CFG.get("policy_terms", []))
 
 
@@ -140,6 +190,7 @@ def save_chunks_cache() -> None:
                 "sources": chunk_sources,
                 "embeddings": chunks_embeddings,
                 "meta": chunk_meta,
+                "norms": CHUNK_NORMS,
             },
             f,
         )
@@ -147,6 +198,7 @@ def save_chunks_cache() -> None:
 
 def load_chunks_cache() -> bool:
     global chunk_texts, chunk_sources, chunks_embeddings, chunk_meta
+    global CHUNK_NORMS
     if not CACHE_PATH.exists():
         return False
     with open(CACHE_PATH, "rb") as f:
@@ -154,6 +206,7 @@ def load_chunks_cache() -> bool:
     chunk_texts = data.get("texts", [])
     chunk_sources = data.get("sources", [])
     chunks_embeddings = data.get("embeddings")
+    CHUNK_NORMS = data.get("norms")
     cached_meta = data.get("meta")
     if cached_meta:
         chunk_meta = cached_meta
@@ -164,6 +217,8 @@ def load_chunks_cache() -> bool:
         chunk_sources = []
         chunk_texts = []
         return False
+    if CHUNK_NORMS is None and chunks_embeddings is not None:
+        CHUNK_NORMS = np.linalg.norm(chunks_embeddings, axis=1)
     print(f"Loaded {len(chunk_texts)} chunks from cache.")
     return True
 
@@ -248,6 +303,9 @@ def load_json_file(path: str) -> None:
         chunk_texts.extend(new_texts)
         chunk_sources.extend(new_sources)
         chunk_meta.extend(new_meta)
+        global CHUNK_NORMS
+        if chunks_embeddings is not None:
+            CHUNK_NORMS = np.linalg.norm(chunks_embeddings, axis=1)
         print(f"Loaded {len(new_texts)} chunks from {path}")
     else:
         print(f"WARNING: no text found in {path}")
@@ -277,6 +335,53 @@ def _tier_boost(tier: int) -> float:
 def _is_acad_reg_url(url: str) -> bool:
     return isinstance(url, str) and "/graduate/academic-regulations-degree-requirements/" in url
 
+
+# --- Diversity helper: drop near-duplicate chunks from the same URL/section
+# Keeps order; if we drop items, we top-up from `ordered` to keep K items.
+# A "duplicate" is defined by (base URL without fragment, normalized title, first 80 chars of normalized text).
+# This is deliberately conservative so it will not impact distinct passages on different sections.
+
+def _dedup_same_block_keep_order(final: List[int], k: int, ordered: List[int]) -> List[int]:
+    try:
+        if not CFG.get("diversity", {}).get("same_block_drop", True):
+            return final[:k]
+        seen: set = set()
+        out: List[int] = []
+        for i in final:
+            if i >= len(chunk_sources) or i >= len(chunk_texts):
+                continue
+            src = chunk_sources[i] or {}
+            base_url = (src.get("url") or "").split("#")[0]
+            title_key = (src.get("title") or "").strip().lower()
+            text_key = re.sub(r"\s+", " ", (chunk_texts[i] or "").strip().lower())[:160]
+            key = (base_url, title_key, text_key[:80])
+            if key in seen:
+                continue
+            seen.add(key)
+            out.append(i)
+        # Top-up from the ordered candidate list if we removed too many
+        if len(out) < k:
+            for i in ordered:
+                if len(out) >= k:
+                    break
+                if i in out:
+                    continue
+                if i >= len(chunk_sources) or i >= len(chunk_texts):
+                    continue
+                src = chunk_sources[i] or {}
+                base_url = (src.get("url") or "").split("#")[0]
+                title_key = (src.get("title") or "").strip().lower()
+                text_key = re.sub(r"\s+", " ", (chunk_texts[i] or "").strip().lower())[:160]
+                key = (base_url, title_key, text_key[:80])
+                if key in seen:
+                    continue
+                seen.add(key)
+                out.append(i)
+        return out[:k]
+    except Exception:
+        # Fail open if anything unexpected happens
+        return final[:k]
+
 def _title_for_sim(src: Dict[str, Any]) -> str:
     title = (src.get("title") or "").strip()
     url = (src.get("url") or "")
@@ -284,6 +389,30 @@ def _title_for_sim(src: Dict[str, Any]) -> str:
     segs = [s for s in path.split("/") if s]
     tail = " ".join(segs[-2:]) if segs else ""
     return (title + " " + tail).strip()
+
+# --- Policy term detector
+def _has_policy_terms(text: str) -> bool:
+    t = (text or "").lower()
+    return any(kw in t for kw in [
+        "gpa", "good standing", "probation", "dismissal", "grade", "b-", "b minus", "c grade", "c-", "c minus", "minimum gpa"
+    ])
+
+# --- Admissions term detector and URL helpers ---
+def _has_admissions_terms(text: str) -> bool:
+    t = (text or "").lower()
+    return any(kw in t for kw in [
+        "admission", "admissions", "apply", "application", "requirements", "gre", "gmat",
+        "test score", "test scores", "english proficiency", "toefl", "ielts",
+        "letters of recommendation", "recommendation letter"
+    ])
+
+
+def _is_admissions_url(url: str) -> bool:
+    return isinstance(url, str) and "/graduate/general-information/admissions/" in url
+
+
+def _is_degree_requirements_url(url: str) -> bool:
+    return isinstance(url, str) and "/graduate/academic-regulations-degree-requirements/degree-requirements/" in url
 
 def _tier4_is_relevant_embed(query: str, idx: int) -> bool:
     gate = CFG.get("tier4_gate", {})
@@ -324,6 +453,38 @@ def _same_program_family(u1: str, u2: str) -> bool:
             return ()
     k1, k2 = key(u1), key(u2)
     return k1 != () and (k1 == k2)
+
+# --- Degree flags and alias/level conflict utilities ---
+def _degree_flags_from_title_url(title: str, url: str) -> Tuple[bool, bool, bool, bool]:
+    title_l = (title or "").lower()
+    url_l = (url or "").lower()
+    is_cert = ("certificate" in title_l) or ("certificate" in url_l)
+    is_phd  = ("phd" in title_l) or ("ph.d" in title_l) or ("/phd" in url_l)
+    is_ms   = (
+        "(m.s" in title_l or " m.s" in title_l or " m.s." in title_l or " ms" in title_l or
+        "/ms" in url_l or "-ms/" in url_l or url_l.endswith("-ms/") or "-ms#" in url_l
+    )
+    is_ug   = ("b.s" in title_l) or ("b.a" in title_l) or ("/bs" in url_l) or ("/ba" in url_l)
+    return is_ms, is_phd, is_cert, is_ug
+
+
+_LEVEL_HINT_TOKEN = {"phd": "ph.d.", "grad": "master's", "certificate": "certificate", "undergrad": "bachelor"}
+
+
+def _alias_conflicts_with_level(alias: Optional[Dict[str, str]], level: str) -> bool:
+    if not alias or not level or level == "unknown":
+        return False
+    is_ms, is_phd, is_cert, is_ug = _degree_flags_from_title_url(alias.get("title", ""), alias.get("url", ""))
+    if level == "certificate":
+        return not is_cert
+    if level == "phd":
+        return not is_phd
+    if level == "grad":
+        # treat grad as MS-ish; allow PhD too
+        return not (is_ms or is_phd)
+    if level == "undergrad":
+        return not is_ug
+    return False
 
 # ---------- Course helpers  ----------
 COURSE_CODE_RX = re.compile(r"\b([A-Z]{2,5})\s*-?\s*(\d{3}[A-Z]?)\b")
@@ -397,14 +558,15 @@ def search_chunks(
         return [], []
 
     q_vec = embed_model.encode([query], convert_to_numpy=True)[0]
-    # Compute cosine similarities
-    chunk_norms = np.linalg.norm(chunks_embeddings, axis=1)
+    # Compute cosine similarities using cached norms
+    global CHUNK_NORMS
+    if CHUNK_NORMS is None:
+        CHUNK_NORMS = np.linalg.norm(chunks_embeddings, axis=1)
+    chunk_norms = CHUNK_NORMS
     query_norm = np.linalg.norm(q_vec)
-    
     # Avoid division by zero
     valid_chunks = chunk_norms > 1e-8
     sims = np.zeros(len(chunks_embeddings))
-    
     if query_norm > 1e-8:
         sims[valid_chunks] = (chunks_embeddings[valid_chunks] @ q_vec) / (chunk_norms[valid_chunks] * query_norm)
     
@@ -413,9 +575,11 @@ def search_chunks(
     
     # Enhanced filtering based on query analysis
     q_lower = (query or "").lower()
-    allow_program = _program_intent(query) or bool(alias_url)
+    allow_program = bool(alias_url)
     looks_policy = any(term in q_lower for term in POLICY_TERMS)
-    
+    looks_admissions = (intent_key == "admissions") or any(tok in q_lower for tok in [
+        "admission", "admissions", "apply", "gre", "gmat", "test score", "test scores", "toefl", "ielts"
+    ])
     # Extract key terms from query for better matching
     query_terms = set(re.findall(r'\b\w+\b', q_lower))
     
@@ -423,16 +587,43 @@ def search_chunks(
     for i in cand_idxs:
         if i >= len(chunk_texts):
             continue
-            
         chunk_text_lower = chunk_texts[i].lower()
         meta_i = chunk_meta[i] if i < len(chunk_meta) else {}
         tier = meta_i.get("tier", 2)
-        
+        # Policy hygiene: tighten what we allow when the query looks like a policy question
+        if looks_policy:
+            # Drop Tier-3 course-description chunks unless they include policy terms
+            if tier == 3:
+                if not _has_policy_terms(chunk_text_lower):
+                    continue
+            # Tier-4 is only allowed if it's the SAME program family AND the chunk actually has policy terms.
+            if tier == 4:
+                src_i = chunk_sources[i] if i < len(chunk_sources) else {}
+                url_i = (src_i.get("url") or "")
+                if alias_url:
+                    if not _same_program_family(url_i, alias_url):
+                        continue
+                    if not _has_policy_terms(chunk_text_lower):
+                        continue
+                else:
+                    # No specific program was requested → keep policy answers general (Tier-1/2)
+                    continue
+        if looks_admissions:
+            # Keep Tier-3 only if it actually contains admissions terms
+            if tier == 3 and not _has_admissions_terms(chunk_text_lower):
+                continue
+            # Tier-4 allowed; we boost the right ones during rescoring
         # More lenient relevance check
         term_matches = len(query_terms.intersection(set(re.findall(r'\b\w+\b', chunk_text_lower))))
         if term_matches == 0 and sims[i] < 0.1:  # Lower threshold
             continue
-            
+        # If the user asked about a specific course, Tier-2 must match that course code
+        if course_norm and tier == 2:
+            src_i = chunk_sources[i] if i < len(chunk_sources) else {}
+            title_i = (src_i.get("title") or "")
+            url_i = (src_i.get("url") or "")
+            if not (_url_contains_course(url_i, course_norm) or _title_starts_with_course(title_i, course_norm)):
+                continue
         # Apply tier filtering
         if tier in (3, 4) and not allow_program:
             continue
@@ -482,10 +673,33 @@ def search_chunks(
             elif tier == 1 and looks_policy:
                 course_bonus = 1.0
 
-        rescored.append((i, base * nudge * same_prog_bonus * course_bonus))
+        # Admissions-specific nudges
+        admissions_bonus = 1.0
+        if looks_admissions:
+            url_i = (src_i.get("url") or "")
+            txt_i = (chunk_texts[i] or "").lower()
+            if _is_admissions_url(url_i):
+                admissions_bonus *= 1.6  # strong boost for the university admissions page
+            if _has_admissions_terms(txt_i):
+                admissions_bonus *= 1.25  # prefer chunks that actually talk admissions or GRE
+            if _is_degree_requirements_url(url_i):
+                admissions_bonus *= 0.85  # demote generic degree requirements for admissions questions
+
+        rescored.append((i, base * nudge * same_prog_bonus * course_bonus * admissions_bonus))
 
     rescored.sort(key=lambda x: x[1], reverse=True)
     ordered = [i for i, _ in rescored]
+
+    # For policy queries, try to lead with a Tier-1 result
+    if looks_policy:
+        lead_t1 = None
+        for i in ordered:
+            if (chunk_meta[i] or {}).get("tier") == 1:
+                lead_t1 = i
+                break
+        if lead_t1 is not None and ordered and ordered[0] != lead_t1:
+            ordered.remove(lead_t1)
+            ordered.insert(0, lead_t1)
 
     # Build preliminary top-k
     final: List[int] = []
@@ -586,6 +800,9 @@ def search_chunks(
         if best_course[0] != -1:
             final[-1] = best_course[0]
 
+    # Final, conservative de-dup of near-identical chunks from the same page/section
+    if CFG.get("diversity", {}).get("enable", True):
+        final = _dedup_same_block_keep_order(final, k, ordered)
     # Build retrieval_path
     retrieval_path = []
     for rank, i in enumerate(final, start=1):
@@ -640,6 +857,9 @@ _INTENT_KEYWORDS = {
         "how many credits", "total credits", "credit requirement",
         "number of credits", "credit hours", "credits required"
     ],
+    "program_options": [
+        "thesis", "non-thesis", "project option", "project", "exam option", "comprehensive exam"
+    ],
 }
 
 _INTENT_TEMPLATES = {
@@ -649,6 +869,7 @@ _INTENT_TEMPLATES = {
     "registration": "add/drop and withdrawal deadlines",
     "course_info": "course details and prerequisites",
     "degree_credits": "total credits required",
+    "program_options": "thesis vs project/exam options",
 }
 
 _LEVEL_HINTS = {
@@ -657,6 +878,14 @@ _LEVEL_HINTS = {
     "phd": ["phd", "ph.d.", "doctoral", "doctorate"],
     "certificate": ["certificate", "grad certificate", "graduate certificate"],
 }
+
+# --- Helper for explicit program mention ---
+def _explicit_program_mention(text: str) -> bool:
+    t = (text or "").lower()
+    # Heuristic: contains a degree word and a scoping preposition like "in"/"for" or the word "program"
+    has_degree_word = bool(re.search(r"\b(ms|m\.s\.|master'?s|phd|ph\.d\.|doctoral|doctorate|certificate)\b", t))
+    has_scope_word = (" program " in f" {t} ") or bool(re.search(r"\b(in|for)\b", t))
+    return has_degree_word and has_scope_word
 
 # simple in-memory index of program pages for fuzzy matching
 _PROGRAM_PAGES: List[Dict[str, str]] = []  # {"title", "url", "norm"}
@@ -731,6 +960,35 @@ def _detect_intent(message: str, prev_intent: Optional[str]) -> Optional[str]:
         best = "course_info"
     return best
 
+# --- Helper: auto intent from topic, for follow-up/topic reuse ---
+def _auto_intent_from_topic(message: str) -> Optional[str]:
+    """Heuristically infer a policy intent when none was detected.
+    This makes follow-ups like "do it for MS" reuse the prior topic with a stable intent.
+    """
+    q = _norm(message)
+    if not q:
+        return None
+    # GPA / standing / grading
+    if any(tok in q for tok in ["good standing", "probation", "dismissal", "minimum gpa", "gpa", "grade", "c grade", "b-", "b minus", "c-", "c minus"]):
+        return "gpa_minimum"
+    # Registration policies
+    if any(tok in q for tok in ["withdraw", "withdrawal", "drop", "add drop", "deadline", "last day to"]):
+        return "registration"
+    # Degree credit total
+    if any(tok in q for tok in ["credits required", "how many credits", "total credits", "credit requirement", "credit hours"]):
+        return "degree_credits"
+    # Program options (thesis vs project/exam)
+    if any(tok in q for tok in ["thesis", "non thesis", "non-thesis", "project", "exam option", "comprehensive exam"]):
+        return "program_options"
+    # Course info
+    if _detect_course_code(message):
+        return "course_info"
+    # Admissions (GRE/GMAT etc.)
+    if any(tok in q for tok in ["gre", "gmat", "toefl", "ielts", "admission", "admissions", "apply", "recommendation"]):
+        return "admissions"
+    return None
+
+
 def _detect_program_level(message: str, fallback: str) -> str:
     q = _norm(message)
     m = COURSE_CODE_RX.search(message or "")
@@ -748,6 +1006,31 @@ def _detect_program_level(message: str, fallback: str) -> str:
             return level
     return fallback or "unknown"
 
+# --- Correction/negation detection for program level ---
+def _detect_correction_or_negation(text: str) -> Dict[str, Optional[str]]:
+    """
+    Detect correction or negation phrases indicating a change or removal of program level.
+    Returns dict like {"negated_level": str|None, "new_level": str|None}.
+    """
+    t = (text or "").lower()
+    result = {"negated_level": None, "new_level": None}
+    # Negations
+    for lvl, hints in _LEVEL_HINTS.items():
+        for h in hints:
+            if f"not {h}" in t or re.search(rf"not in (a|the)?\s*{h}", t):
+                result["negated_level"] = lvl
+    # Affirmations / declarations
+    for lvl, hints in _LEVEL_HINTS.items():
+        for h in hints:
+            if re.search(rf"\bfor (a|the)?\s*{h}\b", t) or re.search(rf"i'?m in (a|the)?\s*{h}\b", t):
+                result["new_level"] = lvl
+    # Fallback: explicit phrases like "actually, ...", "do it for grad"
+    if "actually" in t or "instead" in t:
+        for lvl, hints in _LEVEL_HINTS.items():
+            if any(h in t for h in hints):
+                result["new_level"] = lvl
+    return result
+
 def _match_program_alias(message: str) -> Optional[Dict[str, str]]:
     if not _PROGRAM_PAGES:
         return None
@@ -755,45 +1038,109 @@ def _match_program_alias(message: str) -> Optional[Dict[str, str]]:
     q_raw = (message or "").strip()
     q_norm = _norm(q_raw)
 
-    #  Fast path A: title containment (normalized tokens)
-    
-    for rec in _PROGRAM_PAGES:
-        tnorm = rec["norm"]  # normalized title
+    # ---- Degree / award hints from the user's message ----
+    t = f" {q_raw.lower()} "
+    wants_ms = bool(re.search(r"\bms\b|\bm\.s\.?\b|\bmaster'?s\b", t))
+    wants_phd = bool(re.search(r"\bphd\b|\bph\.d\.?\b|\bdoctoral\b|\bdoctorate\b", t))
+    wants_cert = "certificate" in t
+    wants_undergrad = bool(re.search(r"\bundergrad\b|\bbachelor'?s\b|\bbs\b|\bba\b", t))
+
+    def _degree_flags(rec: Dict[str, str]) -> Tuple[bool, bool, bool, bool]:
+        title = (rec.get("title") or "").lower()
+        url = (rec.get("url") or "").lower()
+        is_cert = ("certificate" in title) or ("certificate" in url)
+        is_phd = ("phd" in title) or ("ph.d" in title) or ("/phd" in url)
+        # Common MS indicators in title/URL
+        is_ms = (
+            "(m.s" in title or " m.s" in title or " m.s." in title or " ms" in title or
+            "/ms" in url or "-ms/" in url or url.endswith("-ms/") or "-ms#" in url
+        )
+        is_undergrad = ("b.s" in title) or ("b.a" in title) or ("/bs" in url) or ("/ba" in url)
+        return is_ms, is_phd, is_cert, is_undergrad
+
+    def _degree_allowed(rec: Dict[str, str]) -> bool:
+        is_ms, is_phd, is_cert, is_undergrad = _degree_flags(rec)
+        # If the user specified a degree/award, filter accordingly
+        if wants_ms:
+            if is_cert or is_phd:
+                return False
+        if wants_phd:
+            if is_cert or is_ms:
+                return False
+        if wants_cert:
+            if not is_cert:
+                return False
+        if wants_undergrad:
+            if not is_undergrad:
+                return False
+        return True
+
+    # Candidate pool respecting degree hints when present
+    if wants_ms or wants_phd or wants_cert or wants_undergrad:
+        CANDS_ALL = [rec for rec in _PROGRAM_PAGES if _degree_allowed(rec)]
+        if not CANDS_ALL:
+            # If filtering removed everything, fall back to all programs
+            CANDS_ALL = list(_PROGRAM_PAGES)
+    else:
+        CANDS_ALL = list(_PROGRAM_PAGES)
+
+    # ---- Fast path A: title containment (normalized tokens) ----
+    for rec in CANDS_ALL:
+        tnorm = rec.get("norm") or ""
         if not tnorm:
             continue
         if q_norm and (q_norm in tnorm or tnorm in q_norm):
             return {"title": rec["title"], "url": rec["url"]}
 
-   
-    # build a coarse slug from the question and try to find it in the URL
+    # ---- Fast path B: slug containment in URL ----
     def _slugify(s: str) -> str:
         s = re.sub(r"[^a-z0-9\s]", " ", (s or "").lower())
         s = re.sub(r"\s+", "-", s).strip("-")
         return s
 
-    # drop generic words so "information technology" survives but "ms program" won't dominate
     DROP = {"ms", "m.s", "m.s.", "program", "degree", "graduate", "master", "masters"}
-    q_tokens = [t for t in q_norm.split() if t and t not in DROP]
+    q_tokens = [tok for tok in q_norm.split() if tok and tok not in DROP]
     q_slug = _slugify(" ".join(q_tokens))  # e.g., "information-technology"
-
     if q_slug:
-        for rec in _PROGRAM_PAGES:
+        for rec in CANDS_ALL:
             url = rec.get("url") or ""
             if q_slug in url:
                 return {"title": rec["title"], "url": rec["url"]}
 
-    # ---- Existing logic (fallback): token-overlap shortlist - embedding pick
+    # ---- Embedding shortlist (token-overlap) then semantic pick ----
     q_tokens_set = set(q_norm.split())
-    cands = [rec for rec in _PROGRAM_PAGES if (set(rec["norm"].split()) & q_tokens_set)]
-    if not cands:
-        cands = _PROGRAM_PAGES  # last resort: consider all
+    cands_overlap = [rec for rec in CANDS_ALL if (set((rec.get("norm") or "").split()) & q_tokens_set)]
+    if not cands_overlap:
+        cands_overlap = CANDS_ALL  # last resort: consider all within degree-filtered set
 
-    titles = [rec["title"] for rec in cands]
+    titles = [rec["title"] for rec in cands_overlap]
     vecs = embed_model.encode([q_raw] + titles, convert_to_numpy=True)
     qv, tv = vecs[0], vecs[1:]
     sims = (tv @ qv) / (np.linalg.norm(tv, axis=1) * np.linalg.norm(qv) + 1e-8)
     best_idx = int(np.argmax(sims))
-    best = cands[best_idx]
+    best = cands_overlap[best_idx]
+
+    # If the user explicitly asked for MS/PhD/Certificate, apply a slight preference boost
+    # to matches whose degree flags align; otherwise, fall back to threshold as before.
+    if wants_ms or wants_phd or wants_cert or wants_undergrad:
+        is_ms, is_phd, is_cert, is_ug = _degree_flags(best)
+        aligns = (
+            (wants_ms and is_ms) or (wants_phd and is_phd) or (wants_cert and is_cert) or (wants_undergrad and is_ug)
+        )
+        if not aligns:
+            # Try to find the top aligned candidate, if any
+            aligned_idx = None
+            best_aligned_score = -1.0
+            for i, rec in enumerate(cands_overlap):
+                ims, iphd, icert, iug = _degree_flags(rec)
+                if (wants_ms and ims) or (wants_phd and iphd) or (wants_cert and icert) or (wants_undergrad and iug):
+                    if sims[i] > best_aligned_score:
+                        best_aligned_score = sims[i]
+                        aligned_idx = i
+            if aligned_idx is not None:
+                best = cands_overlap[aligned_idx]
+                best_idx = aligned_idx
+
     if float(sims[best_idx]) < 0.45:
         return None
     return {"title": best["title"], "url": best["url"]}
@@ -854,6 +1201,21 @@ def _extract_gre_requirement(question: str, chunks: List[Tuple[str, Dict[str, An
     return None
 
 # QA core (now alias- & course-aware)
+def build_context_from_indices(idxs: List[int]) -> Tuple[List[Tuple[str, Dict[str, Any]]], str]:
+    """
+    Build (top_chunks, context_string) from precomputed indices without re-searching.
+    """
+    if not idxs:
+        return [], ""
+    top_chunks = [(chunk_texts[i], chunk_sources[i]) for i in idxs if i < len(chunk_texts)]
+    parts = []
+    for text, source in top_chunks:
+        title = source.get("title", "Source")
+        title = title.split(" - ")[-1] if " - " in title else title
+        parts.append(f"{title}: {text}")
+    return top_chunks, "\n\n".join(parts)
+
+
 def _answer_question(
     question: str,
     alias_url: Optional[str] = None,
@@ -861,11 +1223,13 @@ def _answer_question(
     course_norm: Optional[str] = None,
 ):
     # widen initial pool when we have a program alias, so the “same program” pages make the candidate set
-    topn_local = 120 if alias_url else 40
+    topn_cfg = CFG.get("search", {})
+    topn_local = int(topn_cfg.get("topn_with_alias", 80)) if alias_url else int(topn_cfg.get("topn_base", 40))
     idxs, retrieval_path = search_chunks(
         question, topn=topn_local, k=5, alias_url=alias_url, intent_key=intent_key, course_norm=course_norm
     )
-    top_chunks, retrieval_path, context = get_context(question)
+    # Build context from the *same* indices to keep generation/sources aligned
+    top_chunks, context = build_context_from_indices(idxs)
 
     # prefer a same-program, "facty" chunk at the top for generation
     def _url_same_family(u: str, base: Optional[str]) -> bool:
@@ -896,6 +1260,8 @@ def _answer_question(
                 if r.get("idx") != prefer_idx:
                     r["rank"] = rank_counter
                     rank_counter += 1
+            # Rebuild generation context to match the new order
+            top_chunks, context = build_context_from_indices(idxs)
 
     if not idxs:
         return "I couldn't find relevant information in the catalog.", [], retrieval_path
@@ -911,16 +1277,31 @@ def _answer_question(
             get_prompt(question + course_hint, context),
             max_new_tokens=128,
             repetition_penalty=1.2,
-            no_repeat_ngram_size=2)
+            no_repeat_ngram_size=2,
+        )
         answer = long_result[0]["generated_text"].strip()
     except Exception as exc:
         return f"ERROR running local model: {exc}", [], retrieval_path
 
-   # Regex fallbacks if model punts
+    # Regex fallbacks if model punts
     def _looks_idk(a: str) -> bool:
         return bool(re.search(r"\bi don'?t know\b", (a or "").lower()))
 
     enriched_sources = _wrap_sources_with_text_fragments(top_chunks, question)
+
+    # --- Policy guardrail: deterministic grading fact when appropriate ---
+    def _tier1_grading_present(paths: List[Dict[str, Any]]) -> bool:
+        for r in paths or []:
+            title = (r.get("title") or "").lower()
+            url = (r.get("url") or "").lower()
+            if "/graduate/academic-regulations-degree-requirements/grading/" in url or "academic standards" in title:
+                return True
+        return False
+
+    is_grade_topic = bool(re.search(r"\b(gpa|grade|good standing|probation|dismissal|b-\b|c grade|c-\b)\b", (question or "").lower())) or (intent_key == "gpa_minimum")
+    if is_grade_topic and _tier1_grading_present(retrieval_path):
+        answer = ("Graduate credit is only granted for courses completed with B- or higher. "
+                  "Individual programs may set stricter requirements; see your program page for details.")
 
     # degree_credits fallback
     if intent_key == "degree_credits":
@@ -932,11 +1313,16 @@ def _answer_question(
                 answer = f"{num}."
 
     # GRE fallback (when the question mentions GRE/GMAT)
+    asked_gre = bool(re.search(r"\b(gre|gmat|test score|test scores)\b", (question or "").lower()))
     gre_hit = _extract_gre_requirement(question, top_chunks)
     if gre_hit:
         _, _, yesno = gre_hit
         if _looks_idk(answer):
             answer = f"{yesno}."
+    elif asked_gre and (intent_key == "admissions"):
+        # Admissions guardrail when no explicit GRE text is retrieved
+        answer = ("GRE requirements are program-specific. Many UNH graduate programs do not require GRE, "
+                  "but some do. Check the Admission Requirements section on your program page for the current policy.")
 
     # Course fallbacks
     if course_norm and intent_key == "course_info":
@@ -968,21 +1354,59 @@ def _answer_question(
             line += f" ({src['url']})"
         citation_lines.append(line)
 
+
     return answer, citation_lines, retrieval_path
 
-def get_context(question):
-    idxs, retrieval_path = search_chunks(question, topn=40, k=5)
-    if not idxs:
-        return UNKNOWN, [], retrieval_path
-    top_chunks = [(chunk_texts[i], chunk_sources[i]) for i in idxs]
-    # Create context with source attribution and new lines
-    context_parts = []
-    for i, (text, source) in enumerate(top_chunks):
-        title = source.get('title', 'Source')
-        # Don't use hierarchial title for context, confuses the ai
-        title = title.split(' - ')[-1] if ' - ' in title else title
-        context_parts.append(f"{title}: {text}")
-    return top_chunks, retrieval_path, "\n\n".join(context_parts)
+
+# ----------------------- FOLLOW-UP ANSWER FORMATTER -----------------------
+def _format_followup_answer(answer: str, sess: Dict[str, Any], intent_key: Optional[str], is_followup: bool) -> str:
+    """Prefix answers with 'For <Program/Course>, ...' when a label exists; avoid duplicates and keep casing/punctuation natural."""
+    text = (answer or "").strip()
+    if not text or text.lower() == UNKNOWN.lower():
+        return answer or ""
+
+    # Choose display label (prefer course code, else program title)
+    label = None
+    course = sess.get("course_code") if isinstance(sess, dict) else None
+    if isinstance(course, dict) and course.get("norm"):
+        label = course["norm"]
+    alias = sess.get("program_alias") if isinstance(sess, dict) else None
+    if label is None and isinstance(alias, dict) and alias.get("title"):
+        label = alias["title"]
+    if not label:
+        return answer
+
+    # Normalize duplicate program titles like "X - X" -> "X"
+    try:
+        parts = [p.strip() for p in re.split(r"\s*-\s*", label) if p.strip()]
+        if len(parts) == 2 and parts[0].lower() == parts[1].lower():
+            label = parts[0]
+    except Exception:
+        pass
+
+    body = text.lstrip()
+
+    # If it already begins with the same label, do nothing
+    if body.lower().startswith(f"for {label.lower()}"):
+        return answer
+
+    # If it begins with a different "For ..., " prefix, leave as-is (avoid churn)
+    if body.lower().startswith("for "):
+        try:
+            head = body[4:].split(",", 1)[0].strip().lower()
+            if head == label.lower():
+                return answer
+        except Exception:
+            pass
+
+    # Lowercase the first letter after the comma when the sentence looks like Title case (avoid proper noun issues)
+    first = body[:1]
+    rest = body[1:]
+    if first.isupper() and (rest[:1].islower() if rest else False) and not body.startswith("I "):
+        body = first.lower() + rest
+
+    return f"For {label}, {body}"
+
 
 def get_prompt(question, context):
     return (
@@ -1093,14 +1517,77 @@ async def answer_question(request: ChatRequest, x_session_id: Optional[str] = He
 
     #  update session context ---
     new_intent = _detect_intent(incoming_message, prev_intent=sess.get("intent"))
+    # --- strong per-message intent override to avoid sticky bleed-through ---
+    _msg_l = (incoming_message or "").lower()
+    if any(tok in _msg_l for tok in ["gpa", "good standing", "probation", "dismissal", "minimum gpa", "c grade", "b-", "c-"]):
+        new_intent = "gpa_minimum"
+    elif any(tok in _msg_l for tok in ["add drop", "add/drop", "withdraw", "withdrawal", "last day to drop", "registration"]):
+        new_intent = "registration"
     new_level = _detect_program_level(incoming_message, fallback=sess.get("program_level") or "unknown")
     match = _match_program_alias(incoming_message)
     new_alias = match or sess.get("program_alias")
 
-    # detect course code (and follow-up handling) ---
-    detected_course = _detect_course_code(incoming_message)
+    # Correction / negation handling
+    corr = _detect_correction_or_negation(incoming_message)
+    if corr.get("negated_level"):
+        neg = corr["negated_level"]
+        if sess.get("program_level") == neg:
+            new_level = "unknown"
+            new_alias = None
+    if corr.get("new_level"):
+        new_level = corr["new_level"]
+    # If correction detected, keep previous intent/topic (reuse last question context)
+    if any(corr.values()):
+        if sess.get("last_question"):
+            # mark as follow-up reuse
+            incoming_message = sess.get("last_question")
+            print(f"[correction] Reusing previous topic due to correction: {incoming_message}")
 
-    # Follow-up pattern
+    # Degree-aware alias realignment when level is set and current alias conflicts
+    try:
+        if new_alias and isinstance(new_alias, dict) and new_level and new_level != "unknown":
+            if _alias_conflicts_with_level(new_alias, new_level):
+                level_hint = _LEVEL_HINT_TOKEN.get(new_level, "")
+                hinted_message = incoming_message + (f" {level_hint}" if level_hint else "")
+                rematch = _match_program_alias(hinted_message)
+                new_alias = rematch if rematch else None
+    except Exception:
+        pass
+
+    # Determine if this turn is a follow-up (or a correction/affirmation)
+    is_followup = _looks_like_followup(request.message) or any(corr.values())
+    base_topic = incoming_message
+    if is_followup and sess.get("last_question"):
+        base_topic = sess.get("last_question")
+
+    # Preserve prior program on short follow-ups unless the user clearly names a new one
+    try:
+        explicit_prog = _explicit_program_mention(request.message)
+        if is_followup and sess.get("program_alias") and not explicit_prog:
+            new_alias = sess.get("program_alias")
+        elif match:
+            # If user explicitly named a program, accept the new match
+            if explicit_prog:
+                new_alias = match
+            else:
+                # No explicit mention: prefer sticking with prior alias if present
+                new_alias = sess.get("program_alias") or match
+        else:
+            new_alias = sess.get("program_alias")
+    except Exception:
+        pass
+
+    # If intent was not confidently detected, infer from the base topic
+    if not new_intent:
+        inferred = _auto_intent_from_topic(base_topic)
+        if inferred:
+            new_intent = inferred
+        elif sess.get("intent"):
+            # sticky previous intent for short follow-ups
+            new_intent = sess.get("intent")
+
+    # Secondary course detection fallback for explicit follow-up like: "what about DATA 800?"
+    detected_course = _detect_course_code(base_topic)
     if not detected_course and (sess.get("intent") == "course_info"):
         if re.search(r"\bwhat about\b", incoming_message, re.I) or COURSE_CODE_RX.search(incoming_message.upper()):
             detected_course = _detect_course_code(incoming_message)
@@ -1112,37 +1599,50 @@ async def answer_question(request: ChatRequest, x_session_id: Optional[str] = He
         program_level=new_level,
         program_alias=new_alias,
         course_code=detected_course,
-        last_question=incoming_message,
+        last_question=base_topic,
     )
 
-    # Compose a scoped question when we have an intent + program alias OR a course code
-    scoped_message = incoming_message
+    # Compose a scoped message using the base topic and any new scope
+    scoped_message = base_topic
     alias_url = None
     if new_alias and isinstance(new_alias, dict):
         alias_url = new_alias.get("url")
 
     intent_key = new_intent or sess.get("intent")
 
-    # If we have a course, we prefer course-specific scoped prompt
-    if detected_course and intent_key == "course_info":
-        scoped_message = f"course details and prerequisites for {detected_course['norm']}"
-
-    # Otherwise, program-scoped message as before
-    elif new_alias and intent_key in _INTENT_TEMPLATES:
-        prog_title = new_alias["title"]
-        scoped_message = f"{_INTENT_TEMPLATES[intent_key]} for {prog_title}"
-        if intent_key != "degree_credits" and new_level and new_level != "unknown":
-            scoped_message += f" ({new_level})"
-
-    # final safeguard to keep prior intent on short follow-ups
-    if _looks_like_followup(incoming_message) and sess.get("intent"):
-        intent_key = sess.get("intent")
+    # Prefer course-specific scoping when the intent is course_info
+    detected_course_obj = detected_course
+    if detected_course_obj and (intent_key == "course_info"):
+        scoped_message = f"course details and prerequisites for {detected_course_obj['norm']}"
+    else:
+        # Build from intent templates if available
+        if intent_key in _INTENT_TEMPLATES:
+            scoped_message = _INTENT_TEMPLATES[intent_key]
+            if new_alias and isinstance(new_alias, dict):
+                scoped_message += f" for {new_alias['title']}"
+            # Add level parenthetical when known and helpful
+            if new_level and new_level != "unknown" and intent_key != "degree_credits":
+                scoped_message += f" ({new_level})"
+        else:
+            # No template -> keep the base topic but append scope if present
+            if new_alias and isinstance(new_alias, dict):
+                scoped_message = f"{base_topic} for {new_alias['title']}"
+            if new_level and new_level != "unknown" and (not new_alias or intent_key not in _INTENT_TEMPLATES):
+                scoped_message += f" ({new_level})"
 
     # Retrieve / Answer (alias- & course-aware, with guarantees/biases)
-    course_norm = detected_course["norm"] if detected_course else None
+    course_norm = detected_course_obj["norm"] if detected_course_obj else None
+    if intent_key == "gpa_minimum":
+        alias_url = None  # keep GPA answers general (Tier-1/2)
     answer, sources, retrieval_path = cached_answer_with_path(
         scoped_message, alias_url=alias_url, intent_key=intent_key, course_norm=course_norm
     )
+    # Post-process: format follow-up answers with program/course context when appropriate
+    try:
+        sess_obj = get_session(x_session_id)
+        answer = _format_followup_answer(answer, sess_obj, intent_key, True)
+    except Exception:
+        pass
 
     update_session(
         x_session_id,
@@ -1150,7 +1650,27 @@ async def answer_question(request: ChatRequest, x_session_id: Optional[str] = He
         last_retrieval_path=retrieval_path,
     )
 
-    log_chat_to_csv(incoming_message, answer, sources)
+    # Record this turn in bounded session history (last 5)
+    try:
+        push_history(
+            x_session_id,
+            {
+                "timestamp": _now_iso(),
+                "question": base_topic,
+                "scoped_message": scoped_message,
+                "answer": answer,
+                "intent": intent_key,
+                "program_level": new_level,
+                "program_alias": (new_alias or {}).get("title") if isinstance(new_alias, dict) else None,
+                "course_code": (detected_course_obj or {}).get("norm") if isinstance(detected_course_obj, dict) else None,
+                "retrieval_path": retrieval_path,
+            },
+        )
+    except Exception:
+        # Non-fatal: history is a debug aid
+        pass
+
+    log_chat_to_csv(base_topic, answer, sources)
     return ChatResponse(answer=answer, sources=sources, retrieval_path=retrieval_path)
 
 

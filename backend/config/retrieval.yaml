@@ -97,3 +97,8 @@ program_index:
     - policies
     - sample
     - plan of study
+
+diversity:
+  enable: true
+  same_url_penalty: 0.9
+  same_block_drop: true
