@@ -1,4 +1,5 @@
 import re
+from typing import Optional
 
 GENERIC_RESPONSES = {
     # greetings
@@ -77,7 +78,11 @@ def normalize_text(text: str) -> str:
     text = re.sub(r"[^\w\s]", "", text)
     return text
 
-def get_generic_response(message: str) -> str | None:
+def get_generic_response(message: str) -> Optional[str]:
+    """
+    Return a generic response from GENERIC_RESPONSES if a key matches the message.
+    Returns None if no match is found.
+    """
     text = normalize_text(message)
     matches = []
 
