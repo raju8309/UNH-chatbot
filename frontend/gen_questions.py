@@ -4,8 +4,8 @@ from collections import Counter
 from pathlib import Path
 
 # container paths
-BASE_DIR = Path("/app")  # adjust if your Docker WORKDIR changes
-INPUT_FILE = BASE_DIR / "chat_logs.csv"               # copied into container
+BASE_DIR = Path("/app")  
+INPUT_FILE = BASE_DIR / "chat_logs.csv"
 GOLD_FILE = BASE_DIR / "automation_testing/gold.jsonl"
 OUTPUT_FILE = BASE_DIR / "frontend/public/popular_questions.json"
 TOP_N = 6
