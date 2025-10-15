@@ -38,6 +38,3 @@ WORKDIR /app/backend
 
 # Expose port
 EXPOSE 8003
-
-# Start main script (adjust as needed)
-# CMD ["python", "train.py"] or ["python", "main.py"]
