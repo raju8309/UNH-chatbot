@@ -74,21 +74,23 @@ def update_session(session_id: str, **fields: Any) -> None:
     sess.update(fields)
     sess["updated_at"] = _now_iso()
 
+
 # -----------------------
 # Session history helper
 # -----------------------
-def push_history(session_id: str, entry: Dict[str, Any]) -> None:
+def push_history(session_id: str, entry: Dict[str, Any], keep_last: int = 5) -> None:
     """Append a history entry to the session, capped at 5 most recent turns."""
     sess = get_session(session_id)
     hist = sess.get("history")
     if not isinstance(hist, list):
         hist = []
     hist.append(entry)
-    # Cap to last 5 items
-    if len(hist) > 5:
-        hist = hist[-5:]
+    if len(hist) > keep_last:
+        hist = hist[-keep_last:]
     sess["history"] = hist
     sess["updated_at"] = _now_iso()
+
+
 
 # -----------------------
 # Models
@@ -109,7 +111,11 @@ qa_pipeline = pipeline(
 
 
 # FastAPI app initialization
+
+# FastAPI app initialization
 app = FastAPI()
+
+
 
 
 # Startup event: auto-load config, data, mount frontend if run with uvicorn backend.main:app
@@ -696,7 +702,19 @@ def search_chunks(
                 if re.search(r"\b(total|min(?:imum)?|required)\b", txt_i):
                     credits_bonus *= 1.2  # stronger if it mentions total/minimum/required
 
-        rescored.append((i, base * nudge * same_prog_bonus * course_bonus * admissions_bonus * credits_bonus))
+        # Section targeting for degree credits / requirements
+        title_l = (src_i.get("title") or "").lower()
+        section_bonus = 1.0
+        if intent_key in ("degree_credits", "degree_requirements"):
+            # Prefer the Degree Requirements (or generic Requirements) section of the same program
+            if alias_url and _same_program_family(src_i.get("url", ""), alias_url):
+                if ("degree requirements" in title_l) or re.search(r"\brequirements?\b", title_l):
+                    section_bonus *= 1.6
+            # Lightly demote generic/intro sections when asking for credits/requirements
+            if any(s in title_l for s in ("career opportunities", "overview", "sample", "plan of study")):
+                section_bonus *= 0.85
+
+        rescored.append((i, base * nudge * same_prog_bonus * course_bonus * admissions_bonus * credits_bonus * section_bonus))
 
     rescored.sort(key=lambda x: x[1], reverse=True)
     ordered = [i for i, _ in rescored]
@@ -1134,7 +1152,7 @@ def _match_program_alias(message: str) -> Optional[Dict[str, str]]:
 
     DROP = {"ms", "m.s", "m.s.", "program", "degree", "graduate", "master", "masters"}
     q_tokens = [tok for tok in q_norm.split() if tok and tok not in DROP]
-    q_slug = _slugify(" ".join(q_tokens))  # e.g., "information-technology"
+    q_slug = _slugify(" ".join(q_tokens))
     if q_slug:
         for rec in CANDS_ALL:
             url = rec.get("url") or ""
@@ -1235,6 +1253,8 @@ def _extract_gre_requirement(question: str, chunks: List[Tuple[str, Dict[str, An
     return None
 
 # QA core (now alias- & course-aware)
+
+
 def build_context_from_indices(idxs: List[int]) -> Tuple[List[Tuple[str, Dict[str, Any]]], str]:
     """
     Build (top_chunks, context_string) from precomputed indices without re-searching.
@@ -1313,6 +1333,7 @@ def _answer_question(
             repetition_penalty=1.2,
             no_repeat_ngram_size=2,
         )
+        
         answer = long_result[0]["generated_text"].strip()
     except Exception as exc:
         return f"ERROR running local model: {exc}", [], retrieval_path
@@ -1323,19 +1344,7 @@ def _answer_question(
 
     enriched_sources = _wrap_sources_with_text_fragments(top_chunks, question)
 
-    # --- Policy guardrail: deterministic grading fact when appropriate ---
-    def _tier1_grading_present(paths: List[Dict[str, Any]]) -> bool:
-        for r in paths or []:
-            title = (r.get("title") or "").lower()
-            url = (r.get("url") or "").lower()
-            if "/graduate/academic-regulations-degree-requirements/grading/" in url or "academic standards" in title:
-                return True
-        return False
 
-    is_grade_topic = bool(re.search(r"\b(gpa|grade|good standing|probation|dismissal|b-\b|c grade|c-\b)\b", (question or "").lower())) or (intent_key == "gpa_minimum")
-    if is_grade_topic and _tier1_grading_present(retrieval_path):
-        answer = ("Graduate credit is only granted for courses completed with B- or higher. "
-                  "Individual programs may set stricter requirements; see your program page for details.")
 
     # degree_credits fallback
     if intent_key == "degree_credits":
@@ -1389,6 +1398,7 @@ def _answer_question(
         citation_lines.append(line)
 
 
+
     return answer, citation_lines, retrieval_path
 
 
@@ -1414,7 +1424,8 @@ def _format_followup_answer(answer: str, sess: Dict[str, Any], intent_key: Optio
         label = course["norm"]
     alias = sess.get("program_alias") if isinstance(sess, dict) else None
     if label is None and isinstance(alias, dict) and alias.get("title"):
-        label = alias["title"]
+        # Clean any section suffix like " - Career Opportunities"
+        label = (alias["title"].split(" - ")[0] or alias["title"]).strip()
     if not label:
         return answer
 
@@ -1559,12 +1570,6 @@ async def answer_question(request: ChatRequest, x_session_id: Optional[str] = He
 
     #  update session context ---
     new_intent = _detect_intent(incoming_message, prev_intent=sess.get("intent"))
-    # --- strong per-message intent override to avoid sticky bleed-through ---
-    _msg_l = (incoming_message or "").lower()
-    if any(tok in _msg_l for tok in ["gpa", "good standing", "probation", "dismissal", "minimum gpa", "c grade", "b-", "c-"]):
-        new_intent = "gpa_minimum"
-    elif any(tok in _msg_l for tok in ["add drop", "add/drop", "withdraw", "withdrawal", "last day to drop", "registration"]):
-        new_intent = "registration"
     new_level = _detect_program_level(incoming_message, fallback=sess.get("program_level") or "unknown")
     match = _match_program_alias(incoming_message)
     new_alias = match or sess.get("program_alias")
@@ -1596,13 +1601,12 @@ async def answer_question(request: ChatRequest, x_session_id: Optional[str] = He
     except Exception:
         pass
 
-    # Normalize alias title to drop section tails like " - Career Opportunities"
-    try:
-        if isinstance(new_alias, dict) and new_alias.get("title"):
-            base_title = (new_alias["title"].split(" - ")[0] or new_alias["title"]).strip()
-            new_alias = {"title": base_title, "url": new_alias.get("url", "")}
-    except Exception:
-        pass
+    # Final alias title cleanup every turn (drop section tails like " - Career Opportunities")
+    if isinstance(new_alias, dict) and new_alias.get("title"):
+        new_alias = {
+            "title": (new_alias["title"].split(" - ")[0] or new_alias["title"]).strip(),
+            "url": new_alias.get("url", ""),
+        }
 
     # Determine if this turn is a follow-up (or a correction/affirmation)
     is_followup = _looks_like_followup(request.message) or any(corr.values())

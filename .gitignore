@@ -11,3 +11,18 @@ __pycache__/
 /backend/models/
 /.model_cache/
 **/__pycache__/
+backend/chat_logs.csv
+
+chat_logs.csv
+backend/chat_logs.csv
+.DS_Store
+backend/.DS_Store
+
+chat_logs.csv
+backend/chat_logs.csv
+.DS_Store
+backend/.DS_Store
+
+# logs
+backend/chat_logs.csv
+chat_logs.csv
