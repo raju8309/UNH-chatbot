@@ -394,7 +394,9 @@ def _title_for_sim(src: Dict[str, Any]) -> str:
 def _has_policy_terms(text: str) -> bool:
     t = (text or "").lower()
     return any(kw in t for kw in [
-        "gpa", "good standing", "probation", "dismissal", "grade", "b-", "b minus", "c grade", "c-", "c minus", "minimum gpa"
+        "gpa", "good standing", "probation", "dismissal", "grade", "b-", "b minus", "c grade", "c-", "c minus", "minimum gpa",
+        "committee", "guidance committee", "supervisory committee", "qualifying exam", "qualifying examination",
+        "final exam", "exam attempt", "examination attempt"
     ])
 
 # --- Admissions term detector and URL helpers ---
@@ -576,7 +578,7 @@ def search_chunks(
     # Enhanced filtering based on query analysis
     q_lower = (query or "").lower()
     allow_program = bool(alias_url)
-    looks_policy = any(term in q_lower for term in POLICY_TERMS)
+    looks_policy = any(term in q_lower for term in POLICY_TERMS) or _has_policy_terms(q_lower)
     looks_admissions = (intent_key == "admissions") or any(tok in q_lower for tok in [
         "admission", "admissions", "apply", "gre", "gmat", "test score", "test scores", "toefl", "ielts"
     ])
@@ -685,7 +687,16 @@ def search_chunks(
             if _is_degree_requirements_url(url_i):
                 admissions_bonus *= 0.85  # demote generic degree requirements for admissions questions
 
-        rescored.append((i, base * nudge * same_prog_bonus * course_bonus * admissions_bonus))
+        # Degree-credits: prefer chunks that actually state numeric credits
+        credits_bonus = 1.0
+        if intent_key == "degree_credits":
+            txt_i = (chunk_texts[i] or "").lower()
+            if re.search(r"\b\d{1,3}\b", txt_i) and ("credit" in txt_i):
+                credits_bonus *= 1.4
+                if re.search(r"\b(total|min(?:imum)?|required)\b", txt_i):
+                    credits_bonus *= 1.2  # stronger if it mentions total/minimum/required
+
+        rescored.append((i, base * nudge * same_prog_bonus * course_bonus * admissions_bonus * credits_bonus))
 
     rescored.sort(key=lambda x: x[1], reverse=True)
     ordered = [i for i, _ in rescored]
@@ -855,7 +866,11 @@ _INTENT_KEYWORDS = {
     ],
     "degree_credits": [
         "how many credits", "total credits", "credit requirement",
-        "number of credits", "credit hours", "credits required"
+        "number of credits", "credit hours", "credits required",
+        "total number of credits", "credits in total", "credit count"
+    ],
+    "degree_requirements": [
+        "degree requirements", "program requirements", "requirements for the degree"
     ],
     "program_options": [
         "thesis", "non-thesis", "project option", "project", "exam option", "comprehensive exam"
@@ -870,6 +885,7 @@ _INTENT_TEMPLATES = {
     "course_info": "course details and prerequisites",
     "degree_credits": "total credits required",
     "program_options": "thesis vs project/exam options",
+    "degree_requirements": "degree requirements",
 }
 
 _LEVEL_HINTS = {
@@ -898,15 +914,21 @@ _SECTION_STOPWORDS = tuple([
 
 
 # follow-up detector (short, context-carrying messages)
+# follow-up detector (short, context-carrying messages)
 _FOLLOWUP_HINTS = ("for ", "now ", "do it for", "for the", "make that for",
-                   "do that for", "do it", "that", "this", "same")
+                   "do that for", "do it", "that", "this", "what about", "what about for", "what about the")
 
 def _looks_like_followup(text: str) -> bool:
     t = (text or "").strip().lower()
     if not t:
         return False
-    # very short or starts with common follow-up stems
-    return (len(t) <= 60 and any(t.startswith(h) for h in _FOLLOWUP_HINTS)) or t in ("same", "that", "this")
+    # short messages that begin with common follow-up stems (incl. "what about ...")
+    if (len(t) <= 80 and any(t.startswith(h) for h in _FOLLOWUP_HINTS)) or t in ("same", "that", "this"):
+        return True
+    # questions that reference previously established scope implicitly
+    if re.search(r"\b(this|that)\s+(program|course)\b", t):
+        return True
+    return False
 # ---------------------------------------------------------
 
 def _norm(s: Optional[str]) -> str:
@@ -944,9 +966,21 @@ def _build_program_index() -> None:
 
 def _detect_intent(message: str, prev_intent: Optional[str]) -> Optional[str]:
     q = _norm(message)
-    #  sticky intent on likely follow-ups
-    if _looks_like_followup(message) and prev_intent:
-        return prev_intent
+
+    # Follow-up turns: allow lightweight overrides for new topics
+    if _looks_like_followup(message):
+        # Credits-style follow-up ("how many", "total", "credits in total", etc.)
+        if any(tok in q for tok in ["credit", "credits", "credit hour", "credit hours", "how many", "total number"]):
+            return "degree_credits"
+        # Requirements-style follow-up
+        if any(tok in q for tok in ["degree requirement", "degree requirements", "program requirements", "requirements for the degree", "requirements"]):
+            return "degree_requirements"
+        # Course-style follow-up (e.g., "what about COMP 801?")
+        if _detect_course_code(message):
+            return "course_info"
+        # Otherwise, keep previous intent if present
+        if prev_intent:
+            return prev_intent
 
     best = prev_intent
     best_hits = 0
@@ -1365,6 +1399,14 @@ def _format_followup_answer(answer: str, sess: Dict[str, Any], intent_key: Optio
     if not text or text.lower() == UNKNOWN.lower():
         return answer or ""
 
+    # Only prefix on real follow-ups when there is prior history
+    try:
+        hist = sess.get("history") if isinstance(sess, dict) else None
+        if not is_followup or not (isinstance(hist, list) and len(hist) > 0):
+            return answer or ""
+    except Exception:
+        return answer or ""
+
     # Choose display label (prefer course code, else program title)
     label = None
     course = sess.get("course_code") if isinstance(sess, dict) else None
@@ -1554,6 +1596,14 @@ async def answer_question(request: ChatRequest, x_session_id: Optional[str] = He
     except Exception:
         pass
 
+    # Normalize alias title to drop section tails like " - Career Opportunities"
+    try:
+        if isinstance(new_alias, dict) and new_alias.get("title"):
+            base_title = (new_alias["title"].split(" - ")[0] or new_alias["title"]).strip()
+            new_alias = {"title": base_title, "url": new_alias.get("url", "")}
+    except Exception:
+        pass
+
     # Determine if this turn is a follow-up (or a correction/affirmation)
     is_followup = _looks_like_followup(request.message) or any(corr.values())
     base_topic = incoming_message
@@ -1640,7 +1690,7 @@ async def answer_question(request: ChatRequest, x_session_id: Optional[str] = He
     # Post-process: format follow-up answers with program/course context when appropriate
     try:
         sess_obj = get_session(x_session_id)
-        answer = _format_followup_answer(answer, sess_obj, intent_key, True)
+        answer = _format_followup_answer(answer, sess_obj, intent_key, is_followup)
     except Exception:
         pass
 
