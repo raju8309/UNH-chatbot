@@ -27,67 +27,74 @@ from main import (
 def create_training_data():
     """Generate training data using existing retrieval pipeline"""
     training_examples = []
-    verification_data = []
     
-    # Load the training data
-    print("Creating training data from train.json...")
-    train_set = ROOT / "train" / "train.json"
-    if not train_set.exists():
-        raise FileNotFoundError(f"Train file not found: {train_set}")
+    # Load all JSON files from train/data directory
+    data_dir = ROOT / "train" / "data"
+    if not data_dir.exists():
+        raise FileNotFoundError(f"Data directory not found: {data_dir}")
 
-    with open(train_set, "r", encoding="utf-8") as f:
-        data = json.load(f)
-    
-    for i, record in enumerate(data):
-        try:
-            question = record["query"]
-            _, _, context = get_context(question)
-            training_examples.append({
-                "input": get_prompt(question, context),
-                "output": record["answer"],
-                "question": question
-            })
-            verification_data.append({
-                "output": record["answer"],
-                "question": question,
-                "context": context
-            })
-        except json.JSONDecodeError as e:
-            print(f"Error parsing record {i}: {e}")
-            continue
-        except KeyError as e:
-            print(f"Missing field in record {i}: {e}")
-            continue
-        except Exception as e:
-            print(f"Unexpected error in record {i}: {e}")
-            continue
+    json_files = list(data_dir.glob("*.json"))
+    if not json_files:
+        raise FileNotFoundError(f"No JSON files found in: {data_dir}")
 
-    verification_file = ROOT / "train" / "verify.txt"
-    with open(verification_file, "w", encoding="utf-8") as f:
-        for i, item in enumerate(verification_data):
-            # Wrap question
-            f.write("QUESTION:\n")
-            wrapped_question = textwrap.fill(item['question'], width=80, initial_indent="", subsequent_indent="")
-            f.write(f"{wrapped_question}\n\n")
-            # Wrap answer
-            f.write("ANSWER:\n")
-            wrapped_answer = textwrap.fill(item['output'], width=80, initial_indent="", subsequent_indent="")
-            f.write(f"{wrapped_answer}\n\n")
-            # Wrap context
-            f.write("CONTEXT:\n")
-            if item['context']:
-                # Split context by double newlines
-                context_entries = item['context'].split('\n\n')
-                for j, entry in enumerate(context_entries):
-                    if entry.strip():
-                        wrapped_entry = textwrap.fill(entry.strip(), width=80, initial_indent="", subsequent_indent="")
-                        f.write(f"[{j+1}] {wrapped_entry}\n\n")
-            else:
-                f.write("No context found\n\n")
+    print(f"Found {len(json_files)} JSON files to process...")
 
-            f.write("="*80 + "\n\n")
-    
-    print(f"Created {len(training_examples)} training examples")
+    all_data = []
+    for json_file in json_files:
+        print(f"Loading {json_file.name}...")
+        with open(json_file, "r", encoding="utf-8") as f:
+            data = json.load(f)
+            all_data.extend(data)
+        
+        # Create verification file for this JSON
+        verification_data = []
+        for i, record in enumerate(data):
+            try:
+                question = record["query"]
+                _, _, context = get_context(question)
+                training_examples.append({
+                    "input": get_prompt(question, context),
+                    "output": record["answer"],
+                    "question": question
+                })
+                verification_data.append({
+                    "output": record["answer"],
+                    "question": question,
+                    "context": context
+                })
+            except Exception as e:
+                print(f"Error processing record {i} in {json_file.name}: {e}")
+                continue
+
+        # Save verification file
+        out_file = data_dir / f"{json_file.stem}.out"
+        with open(out_file, "w", encoding="utf-8") as f:
+            for i, item in enumerate(verification_data):
+                # Wrap question
+                f.write("QUESTION:\n")
+                wrapped_question = textwrap.fill(item['question'], width=80, initial_indent="", subsequent_indent="")
+                f.write(f"{wrapped_question}\n\n")
+                # Wrap answer
+                f.write("ANSWER:\n")
+                wrapped_answer = textwrap.fill(item['output'], width=80, initial_indent="", subsequent_indent="")
+                f.write(f"{wrapped_answer}\n\n")
+                # Wrap context
+                f.write("CONTEXT:\n")
+                if item['context']:
+                    # Split context by double newlines
+                    context_entries = item['context'].split('\n\n')
+                    for j, entry in enumerate(context_entries):
+                        if entry.strip():
+                            wrapped_entry = textwrap.fill(entry.strip(), width=80, initial_indent="", subsequent_indent="")
+                            f.write(f"[{j+1}] {wrapped_entry}\n\n")
+                else:
+                    f.write("No context found\n\n")
+
+                f.write("="*80 + "\n\n")
+        
+        print(f"Created verification file: {out_file}")
+
+    print(f"Created {len(training_examples)} total training examples from {len(json_files)} files")
     return training_examples
 
 def preprocess_function(examples, tokenizer, max_input_length=512, max_target_length=128):
