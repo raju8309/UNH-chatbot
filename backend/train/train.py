@@ -1,6 +1,7 @@
 import json
 import sys
 import torch
+import textwrap
 from pathlib import Path
 from transformers import (
     T5ForConditionalGeneration, 
@@ -12,54 +13,77 @@ from transformers import (
 from datasets import Dataset
 from sklearn.model_selection import train_test_split
 
-ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "backend"))
+ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT))
 
-import main
-from main import (
-    load_retrieval_cfg,
-    load_initial_data, 
-    get_context,
-    get_prompt,
-    UNKNOWN
-)
+from config.settings import load_retrieval_config
+from models.ml_models import initialize_models
+from services.chunk_service import load_initial_data
+from services.qa_service import get_context
+from services.qa_service import get_prompt
 
 def create_training_data():
     """Generate training data using existing retrieval pipeline"""
     training_examples = []
+    verification_data = []
     
-    # Load the gold standard data
-    print("Creating training data from gold.jsonl...")
-    gold_path = ROOT / "automation_testing" / "gold.jsonl"
-    if not gold_path.exists():
-        raise FileNotFoundError(f"Gold file not found: {gold_path}")
+    # Load the training data
+    print("Creating training data from train.json...")
+    train_set = ROOT / "train" / "train.json"
+    if not train_set.exists():
+        raise FileNotFoundError(f"Train file not found: {train_set}")
+
+    with open(train_set, "r", encoding="utf-8") as f:
+        data = json.load(f)
     
-    with open(gold_path, "r", encoding="utf-8") as f:
-        for line_num, line in enumerate(f, 1):
-            if not line.strip():
-                continue
-                
-            try:
-                record = json.loads(line)
-                question = record["query"]
-                expected_answer = record["reference_answer"]
-                
-                _, _, context = get_context(question)
-                training_examples.append({
-                    "input": get_prompt(question, context),
-                    "output": expected_answer,
-                    "question": question  # For debugging
-                })
-                
-            except json.JSONDecodeError as e:
-                print(f"Error parsing line {line_num}: {e}")
-                continue
-            except KeyError as e:
-                print(f"Missing field in line {line_num}: {e}")
-                continue
-            except Exception as e:
-                print(f"Unexpected error on line {line_num}: {e}")
-                continue
+    for i, record in enumerate(data):
+        try:
+            question = record["query"]
+            _, _, context = get_context(question)
+            training_examples.append({
+                "input": get_prompt(question, context),
+                "output": record["answer"],
+                "question": question
+            })
+            verification_data.append({
+                "output": record["answer"],
+                "question": question,
+                "context": context
+            })
+        except json.JSONDecodeError as e:
+            print(f"Error parsing record {i}: {e}")
+            continue
+        except KeyError as e:
+            print(f"Missing field in record {i}: {e}")
+            continue
+        except Exception as e:
+            print(f"Unexpected error in record {i}: {e}")
+            continue
+
+    verification_file = ROOT / "train" / "verify.txt"
+    with open(verification_file, "w", encoding="utf-8") as f:
+        for i, item in enumerate(verification_data):
+            # Wrap question
+            f.write("QUESTION:\n")
+            wrapped_question = textwrap.fill(item['question'], width=80, initial_indent="", subsequent_indent="")
+            f.write(f"{wrapped_question}\n\n")
+            # Wrap answer
+            f.write("ANSWER:\n")
+            wrapped_answer = textwrap.fill(item['output'], width=80, initial_indent="", subsequent_indent="")
+            f.write(f"{wrapped_answer}\n\n")
+            # Wrap context
+            f.write("CONTEXT:\n")
+            if item['context']:
+                # Split context by double newlines
+                context_entries = item['context'].split('\n\n')
+                for j, entry in enumerate(context_entries):
+                    if entry.strip():
+                        wrapped_entry = textwrap.fill(entry.strip(), width=80, initial_indent="", subsequent_indent="")
+                        f.write(f"[{j+1}] {wrapped_entry}\n\n")
+            else:
+                f.write("No context found\n\n")
+
+            f.write("="*80 + "\n\n")
     
     print(f"Created {len(training_examples)} training examples")
     return training_examples
@@ -105,7 +129,8 @@ if __name__ == "__main__":
     
     # Load data
     print("Loading data...")
-    load_retrieval_cfg()
+    load_retrieval_config()
+    initialize_models()
     load_initial_data()
     
     # Create training data
@@ -150,7 +175,7 @@ if __name__ == "__main__":
         padding=True
     )
     # Training arguments - optimized for GPU training
-    output_dir = ROOT / "backend" / "models" / "flan-t5-small-finetuned"
+    output_dir = ROOT / "train" / "models" / "flan-t5-small-finetuned"
     # Use GPU-optimized settings if available
     if torch.cuda.is_available():
         train_batch_size = 16     # Larger batch for GPU

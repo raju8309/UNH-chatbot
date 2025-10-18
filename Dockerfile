@@ -12,12 +12,14 @@ RUN apt-get update && \
 # Set work directory
 WORKDIR /app
 
-# Copy backend and scrape folders
+# Copy backend, scraper, frontend, and automation_testing folders
 COPY backend/ ./backend/
 COPY scraper/ ./scraper/
-
-# Copy frontend folder
 COPY frontend/ ./frontend/
+COPY automation_testing/ ./automation_testing/
+
+# Copy chat_logs.csv for frontend build
+COPY chat_logs.csv ./chat_logs.csv
 
 # Install Python dependencies
 COPY requirements.txt .
@@ -25,6 +27,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Build frontend
 WORKDIR /app/frontend
+
+# Update gen_questions.py to use the correct path if needed
+RUN sed -i 's|..\/chat_logs.csv|\/app\/chat_logs.csv|g' gen_questions.py || true
+
 RUN npm install && npm run build
 
 # Set workdir to backend for running the server
@@ -32,6 +38,3 @@ WORKDIR /app/backend
 
 # Expose port
 EXPOSE 8003
-
-# Start main script
-CMD ["python", "main.py"]

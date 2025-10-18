@@ -1,3 +1,4 @@
+
 """
 Dashboard-related API endpoints for the automation testing system.
 """
@@ -19,7 +20,7 @@ router = APIRouter()
 async def get_test_results():
     """Serve all automation reports from timestamped report directories"""
     try:
-        automation_dir = Path(__file__).parent.parent / "automation_testing"
+        automation_dir = Path(__file__).parent.parent.parent / "automation_testing"
         reports_dir = automation_dir / "reports"
         
         if not reports_dir.exists():
@@ -85,20 +86,14 @@ async def get_test_results():
                                     {}
                                 )
                                 
-                                retrieved_ids = pred['retrieved_ids']
-                                # Turn dictionary into list of strings (docid:index)
-                                if retrieved_ids and isinstance(retrieved_ids[0], dict):
-                                    from main import base_doc_id
-                                    retrieved_ids = [f"{base_doc_id(item.get('url', ''))}#{item.get('idx', '')}" for item in retrieved_ids]
-                                                               
                                 combined_predictions.append({
                                     'id': pred_id,
-                                    'category': pred_id.split('-')[0],  # AS, DR, GR, GA
+                                    'category': pred_id.split(':')[0],
                                     'query': gold_item['query'],
                                     'model_answer': pred['model_answer'],
                                     'reference_answer': gold_item['reference_answer'],
                                     'nuggets': gold_item['nuggets'],
-                                    'retrieved_ids': retrieved_ids,
+                                    'retrieved_ids': pred['retrieved_ids'],
                                     'gold_passages': gold_item['gold_passages'],
                                     'url': gold_item['url'],
                                     'metrics': {
@@ -106,6 +101,7 @@ async def get_test_results():
                                         'nugget_recall': per_question_metrics.get('nugget_recall', 0),
                                         'nugget_f1': per_question_metrics.get('nugget_f1', 0),
                                         'sbert_cosine': per_question_metrics.get('sbert_cosine', 0),
+                                        'sbert_cosine_chunk': per_question_metrics.get('sbert_cosine_chunk', 0),
                                         'bertscore_f1': per_question_metrics.get('bertscore_f1', 0),
                                         'recall@1': per_question_metrics.get('recall@1', 0),
                                         'recall@3': per_question_metrics.get('recall@3', 0),
@@ -118,15 +114,15 @@ async def get_test_results():
                         
                         # Add predictions metadata
                         pred_stat_info = os.stat(preds_path)
+                        # Dynamically calculate categories from actual data
+                        categories = {}
+                        for pred in combined_predictions:
+                            category = pred['category']
+                            categories[category] = categories.get(category, 0) + 1
                         predictions_data = {
                             'predictions': combined_predictions,
                             'total_questions': len(combined_predictions),
-                            'categories': {
-                                'AS': len([p for p in combined_predictions if p['category'] == 'AS']),
-                                'DR': len([p for p in combined_predictions if p['category'] == 'DR']),
-                                'GR': len([p for p in combined_predictions if p['category'] == 'GR']),
-                                'GA': len([p for p in combined_predictions if p['category'] == 'GA'])
-                            },
+                            'categories': categories,
                             'predictions_timestamp': datetime.fromtimestamp(pred_stat_info.st_mtime).isoformat()
                         }
                     except Exception as pred_error:
@@ -156,7 +152,7 @@ async def run_tests():
     """Run the automation testing suite and return status"""
     try:
         # Path to the run_tests.py script
-        automation_dir = Path(__file__).parent.parent / "automation_testing"
+        automation_dir = Path(__file__).parent.parent.parent / "automation_testing"
         run_tests_script = automation_dir / "run_tests.py"
         
         if not run_tests_script.exists():
@@ -195,7 +191,7 @@ async def run_tests():
 @router.get("/dashboard")
 async def serve_dashboard():
     """Serve the dashboard HTML file"""
-    dashboard_path = Path(__file__).parent.parent / "frontend" / "out" / "dashboard.html"
+    dashboard_path = Path(__file__).parent.parent.parent / "frontend" / "out" / "dashboard.html"
     if dashboard_path.exists():
         return FileResponse(dashboard_path, media_type="text/html")
     else:

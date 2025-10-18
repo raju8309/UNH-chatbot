@@ -11,7 +11,10 @@ GOLD   = ROOT / "automation_testing" / "gold.jsonl"
 
 sys.path.insert(0, str(ROOT / "backend"))
 
-from main import load_initial_data, load_retrieval_cfg, _answer_question
+from config.settings import load_retrieval_config
+from models.ml_models import initialize_models
+from services.chunk_service import load_initial_data
+from services.qa_service import _answer_question
 
 def run(cmd):
     print("→", " ".join(str(c) for c in cmd))
@@ -35,7 +38,8 @@ if __name__ == "__main__":
     print(f"Copied {GOLD} to {gold_copy}")
 
     # Load catalog
-    load_retrieval_cfg()
+    load_retrieval_config()
+    initialize_models()
     load_initial_data()
 
     # Generate predictions using the real pipeline

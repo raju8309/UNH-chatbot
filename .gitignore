@@ -8,7 +8,7 @@ __pycache__/
 .DS_Store
 
 /backend/.backend-venv/
-/backend/models/
+/backend/train/models/
 /.model_cache/
 **/__pycache__/
 backend/chat_logs.csv
@@ -26,3 +26,7 @@ backend/.DS_Store
 # logs
 backend/chat_logs.csv
 chat_logs.csv
+
+# Local logs
+chat_logs.csv
+backend/chat_logs.csv
