@@ -74,11 +74,10 @@ function splitAndLabel(
   const visible = ranked.slice(0, visibleMax);
   const hidden = ranked.slice(visibleMax);
 
-  // Count duplicates by exact title (case-insensitive). We only number when the visible
-  // link texts are exactly the same to the user (your requirement).
+  // Count duplicates by exact title (case-insensitive) across ALL sources (visible + hidden)
   const normalizeTitle = (t: string) => t.trim().replace(/\s+/g, " ").toLowerCase();
   const titleCounts: Record<string, number> = {};
-  visible.forEach(v => {
+  ranked.forEach(v => {
     const key = normalizeTitle(v.title);
     titleCounts[key] = (titleCounts[key] || 0) + 1;
   });
@@ -93,7 +92,14 @@ function splitAndLabel(
     return { ...v, label: v.title };
   });
 
-  const processedHidden: ProcessedSource[] = hidden.map(h => ({ ...h, label: h.title }));
+  const processedHidden: ProcessedSource[] = hidden.map(h => {
+    const key = normalizeTitle(h.title);
+    if (titleCounts[key] > 1) {
+      titleIndex[key] = (titleIndex[key] || 0) + 1;
+      return { ...h, label: `${h.title} (${titleIndex[key]})` };
+    }
+    return { ...h, label: h.title };
+  });
   return { visible: labeledVisible, hidden: processedHidden };
 }
 
