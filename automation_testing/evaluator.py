@@ -20,6 +20,7 @@ import json
 import math
 from pathlib import Path
 from typing import Dict, Iterable, List, Set, Tuple
+from urllib.parse import urlparse
 
 import numpy as np
 from bert_score import score as bertscore
@@ -27,7 +28,6 @@ from sentence_transformers import SentenceTransformer, util
 
 import sys
 sys.path.insert(0, str(Path(__file__).parent.parent / "backend"))
-from main import base_doc_id
 
 # -------- Default file locations (when no --output-dir is given) -------
 GOLD   = Path(__file__).with_name("gold.jsonl")
@@ -158,6 +158,15 @@ def parse_args():
     ap.add_argument("--output-dir", type=str, help="Directory to read preds.jsonl from and write report.json to")
     return ap.parse_args()
 
+def _base_doc_id(url: str) -> str:
+    if not url:
+        return "catalog"
+    p = urlparse(url)
+    name = (Path(p.path).name or "").rstrip("/")
+    if not name and p.path:
+        name = Path(p.path).parts[-1]
+    slug = (name or "catalog").replace(".html", "").replace(".htm", "") or "catalog"
+    return slug
 
 def auto_find_latest_reports_dir() -> Path | None:
     """Pick the newest automation_testing/reports/<timestamp> that has preds.jsonl."""
@@ -242,7 +251,7 @@ if __name__ == "__main__":
         # Normalize retrieved ids for recall/ndcg
         if retrieved and isinstance(retrieved, list) and len(retrieved) > 0 and isinstance(retrieved[0], dict):
             retrieved = [
-                f"{base_doc_id(item.get('url', ''))}#{item.get('idx', '')}"
+                f"{_base_doc_id(item.get('url', ''))}#{item.get('idx', '')}"
                 for item in retrieved if isinstance(item, dict)
             ]
         elif not isinstance(retrieved, list):

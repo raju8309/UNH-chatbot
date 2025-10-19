@@ -47,6 +47,17 @@ def title_starts_with_course(title: str, norm: str) -> bool:
     t = (title or "").upper().strip()
     return t.startswith(norm.upper())
 
+def extract_title_leading_subject(title: str) -> Optional[str]:
+    """
+    Try to read the leading SUBJECT from a chunk title that looks like:
+    'COMP 801 - Something', 'COMP-801 Something', etc.
+    Returns 'COMP' or None.
+    """
+    if not title:
+        return None
+    m = re.match(r"\s*([A-Z]{2,5})\s*[- ]?\s*\d{3}[A-Z]?", title.upper().strip())
+    return m.group(1) if m else None
+
 def extract_course_fallbacks(chunks: List[Tuple[str, Dict]]) -> Dict[str, Optional[str]]:
     result = {
         "credits": None,

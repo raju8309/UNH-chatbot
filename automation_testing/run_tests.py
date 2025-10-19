@@ -14,7 +14,7 @@ sys.path.insert(0, str(ROOT / "backend"))
 from config.settings import load_retrieval_config
 from models.ml_models import initialize_models
 from services.chunk_service import load_initial_data
-from services.qa_service import _answer_question
+from services.query_pipeline import process_question_for_retrieval
 
 def run(cmd):
     print("→", " ".join(str(c) for c in cmd))
@@ -52,8 +52,9 @@ if __name__ == "__main__":
             qid = rec["id"]
             q   = rec["query"]
 
-            ans, _sources, retrieved_ids = _answer_question(q)
-
+            result = process_question_for_retrieval(q)
+            ans = result["answer"]
+            retrieved_ids = result["retrieval_path"]
             fout.write(json.dumps({
                 "id": qid,
                 "model_answer": ans,

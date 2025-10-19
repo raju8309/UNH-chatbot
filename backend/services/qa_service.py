@@ -7,6 +7,7 @@ from services.retrieval_service import search_chunks
 from text_fragments import build_text_fragment_url, choose_snippet, is_synthetic_label
 from utils.course_utils import extract_course_fallbacks
 from utils.program_utils import same_program_family
+from config.settings import get_config
 
 UNKNOWN = "I don't have that information."
 
@@ -83,27 +84,17 @@ def _extract_gre_requirement(
     
     return None
 
-def _looks_idk(answer: str) -> bool:
-    return bool(re.search(r"\bi don'?t know\b", (answer or "").lower()))
-
-def get_context(question: str) -> Tuple[List[Tuple[str, Dict]], List[Dict], str]:
+def build_context_from_indices(idxs: List[int]) -> Tuple[List[Tuple[str, Dict[str, Any]]], str]:
     _, chunk_texts, chunk_sources, _ = get_chunks_data()
-    idxs, retrieval_path = search_chunks(question, topn=40, k=5)
-    
     if not idxs:
-        return [], retrieval_path, UNKNOWN
-    
-    top_chunks = [(chunk_texts[i], chunk_sources[i]) for i in idxs]
-    
-    # create context with source attribution
-    context_parts = []
-    for i, (text, source) in enumerate(top_chunks):
-        title = source.get('title', 'Source')
-        # Use only last part of hierarchical title
-        title = title.split(' - ')[-1] if ' - ' in title else title
-        context_parts.append(f"{title}: {text}")
-    
-    return top_chunks, retrieval_path, "\n\n".join(context_parts)
+        return [], ""
+    top_chunks = [(chunk_texts[i], chunk_sources[i]) for i in idxs if i < len(chunk_texts)]
+    parts = []
+    for text, source in top_chunks:
+        title = source.get("title", "Source")
+        title = title.split(" - ")[-1] if " - " in title else title
+        parts.append(f"{title}: {text}")
+    return top_chunks, "\n\n".join(parts)
 
 def get_prompt(question: str, context: str) -> str:
     return (
@@ -122,90 +113,70 @@ def _answer_question(
     intent_key: Optional[str] = None,
     course_norm: Optional[str] = None,
 ) -> Tuple[str, List[str], List[Dict]]:
-    _, chunk_texts, chunk_sources, chunk_meta = get_chunks_data()
+    _, chunk_texts, chunk_sources, _ = get_chunks_data()
     qa_pipeline = get_qa_pipeline()
-    
-    # Widen search for program context
-    topn_local = 120 if alias_url else 40
+    cfg = get_config()
+
+    topn_cfg = cfg.get("search", {})
+    topn_local = int(topn_cfg.get("topn_with_alias", 80)) if alias_url else int(topn_cfg.get("topn_base", 40))
+    # honor YAML k
+    k_local = int(cfg.get("retrieval_sizes", {}).get("k", cfg.get("k", 5)))
     idxs, retrieval_path = search_chunks(
-        question,
-        topn=topn_local,
-        k=5,
-        alias_url=alias_url,
-        intent_key=intent_key,
-        course_norm=course_norm
+        question, topn=topn_local, k=k_local, alias_url=alias_url, intent_key=intent_key, course_norm=course_norm
     )
-    
-    if not idxs:
-        return "I couldn't find relevant information in the catalog.", [], retrieval_path
-    
-    top_chunks = [(chunk_texts[i], chunk_sources[i]) for i in idxs]
-    
-    # prefer same-program, fact-rich chunks for generation
+    top_chunks, context = build_context_from_indices(idxs)
+
+    def _url_same_family(u: str, base: Optional[str]) -> bool:
+        return bool(base) and same_program_family(u or "", base or "")
+
+    def _has_direct_fact(text: str) -> bool:
+        t = (text or "")[:500]
+        return bool(re.search(r"\b\d{1,3}\b", t)) or bool(re.search(r"\b(credit|credits|gpa|gre|thesis|option)\b", t, re.I))
+
     if alias_url and idxs:
         top5 = idxs[:5]
         prefer_idx = None
-        
         for i in top5:
-            src = chunk_sources[i] if i < len(chunk_sources) else {}
-            text = chunk_texts[i]
-            
-            if same_program_family(src.get("url", ""), alias_url):
-                # Check if text has direct facts
-                has_facts = bool(re.search(r"\b\d{1,3}\b", text[:500])) or \
-                           bool(re.search(r"\b(credit|credits|gpa|gre|thesis|option)\b", text, re.I))
-                
-                if has_facts:
-                    prefer_idx = i
-                    break
-        
+            src = (chunk_sources[i] if i < len(chunk_sources) else {}) or {}
+            if _url_same_family(src.get("url",""), alias_url) and _has_direct_fact(chunk_texts[i]):
+                prefer_idx = i
+                break
         if prefer_idx is not None and prefer_idx != idxs[0]:
-            # move preferred to front
             idxs.remove(prefer_idx)
             idxs.insert(0, prefer_idx)
-            
-            # re-rank retrieval path
             for r in retrieval_path:
                 if r.get("idx") == prefer_idx:
                     r["rank"] = 1
-            
             rank_counter = 2
             for r in retrieval_path:
                 if r.get("idx") != prefer_idx:
                     r["rank"] = rank_counter
                     rank_counter += 1
-    
-    # build context
-    context_parts = []
-    for i in idxs:
-        text = chunk_texts[i]
-        src = chunk_sources[i]
-        title = src.get('title', 'Source')
-        title = title.split(' - ')[-1] if ' - ' in title else title
-        context_parts.append(f"{title}: {text}")
-    
-    context = "\n\n".join(context_parts)
-    
+            top_chunks, context = build_context_from_indices(idxs)
+
+    if not idxs:
+        return "I couldn't find relevant information in the catalog.", [], retrieval_path, None
     # add course hint if applicable
     course_hint = ""
     if course_norm and intent_key == "course_info":
         course_hint = f" Focus on credits, prerequisites, and grade mode for {course_norm} if present."
-    
     # generate answer
     try:
         result = qa_pipeline(
             get_prompt(question + course_hint, context),
             max_new_tokens=128,
             repetition_penalty=1.2,
-            no_repeat_ngram_size=2
+            no_repeat_ngram_size=2,
         )
         answer = result[0]["generated_text"].strip()
     except Exception as exc:
         return f"ERROR running local model: {exc}", [], retrieval_path
-    
     # apply fallbacks
+    def _looks_idk(a: str) -> bool:
+        return bool(re.search(r"\bi don'?t know\b", (a or "").lower()))
+
     enriched_sources = _wrap_sources_with_text_fragments(top_chunks, question)
-    
+
     # degree credits fallback
     if intent_key == "degree_credits":
         hit = _extract_best_credits(top_chunks)
@@ -213,20 +184,22 @@ def _answer_question(
             _, src, num = hit
             if _looks_idk(answer) or not re.search(r"\b\d{1,3}\b", answer):
                 answer = f"{num}."
-    
     # GRE fallback
+    asked_gre = bool(re.search(r"\b(gre|gmat|test score|test scores)\b", (question or "").lower()))
     gre_hit = _extract_gre_requirement(question, top_chunks)
     if gre_hit:
         _, _, yesno = gre_hit
         if _looks_idk(answer):
             answer = f"{yesno}."
-    
+    elif asked_gre and (intent_key == "admissions"):
+        answer = ("GRE requirements are program-specific. Many UNH graduate programs do not require GRE, "
+                  "but some do. Check the Admission Requirements section on your program page for the current policy.")
+
     # course fallbacks
     if course_norm and intent_key == "course_info":
         cf = extract_course_fallbacks(top_chunks)
         need_help = _looks_idk(answer) or \
                    (not re.search(r"credits|prereq|grade", answer, re.I))
-        
         if need_help and any(cf.values()):
             parts = []
             if cf["credits"]:
@@ -235,13 +208,9 @@ def _answer_question(
                 parts.append(f"Prerequisite(s): {cf['prereqs']}")
             if cf["grademode"]:
                 parts.append(f"Grade Mode: {cf['grademode']}")
-            
             if parts:
                 answer = ". ".join(parts) + "."
-    
-    # build citations
     enriched_all = enriched_sources + [src for _, src in top_chunks[3:]]
-    
     seen = set()
     citation_lines = []
     for src in enriched_all:
@@ -249,13 +218,11 @@ def _answer_question(
         if key in seen:
             continue
         seen.add(key)
-        
         line = f"- {src.get('title', 'Source')}"
         if src.get("url"):
             line += f" ({src['url']})"
         citation_lines.append(line)
-    
-    return answer, citation_lines, retrieval_path
+    return answer, citation_lines, retrieval_path, context
 
 @lru_cache(maxsize=128)
 def _cached_answer_core(cache_key: str) -> Tuple[str, List[str], List[Dict]]:
