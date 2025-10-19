@@ -20,7 +20,7 @@ router = APIRouter()
 async def get_test_results():
     """Serve all automation reports from timestamped report directories"""
     try:
-        automation_dir = Path(__file__).parent.parent / "automation_testing"
+        automation_dir = Path(__file__).parent.parent.parent / "automation_testing"
         reports_dir = automation_dir / "reports"
         
         if not reports_dir.exists():
@@ -152,7 +152,7 @@ async def run_tests():
     """Run the automation testing suite and return status"""
     try:
         # Path to the run_tests.py script
-        automation_dir = Path(__file__).parent.parent / "automation_testing"
+        automation_dir = Path(__file__).parent.parent.parent / "automation_testing"
         run_tests_script = automation_dir / "run_tests.py"
         
         if not run_tests_script.exists():
@@ -191,7 +191,7 @@ async def run_tests():
 @router.get("/dashboard")
 async def serve_dashboard():
     """Serve the dashboard HTML file"""
-    dashboard_path = Path(__file__).parent.parent / "frontend" / "out" / "dashboard.html"
+    dashboard_path = Path(__file__).parent.parent.parent / "frontend" / "out" / "dashboard.html"
     if dashboard_path.exists():
         return FileResponse(dashboard_path, media_type="text/html")
     else:

@@ -10,6 +10,106 @@ export type ChatMessage = {
   sources?: string[];
 };
 
+// ----- Sources helpers (limit, dedupe, numbering, collapse) -----
+type RawSource = { title: string; url?: string };
+type ProcessedSource = RawSource & { stem: string; domain: string; label: string };
+const VISIBLE_SOURCE_CAP = 3; // set to 3 or 4 as desired
+
+// Parse a single "- Title (url)" or "- Title" line into title/url
+function parseSourceLine(src: string): RawSource {
+  const match = src.match(/^-\s*(.+?)\s*\(([^)]+)\)\s*$/);
+  if (match) {
+    return { title: match[1], url: match[2] };
+  }
+  // Fallback: strip leading "- " if present
+  const clean = src.replace(/^-+\s*/, "").trim();
+  return { title: clean || src };
+}
+
+function normalizeUrl(raw?: string) {
+  try {
+    if (!raw) return { stem: "", domain: "" };
+    const u = new URL(raw);
+    const domain = u.hostname.replace(/^www\./, "");
+    // Drop query string; keep origin + pathname as the stem (anchors often create dupes)
+    const stem = `${u.origin}${u.pathname}`;
+    return { stem, domain };
+  } catch {
+    return { stem: raw || "", domain: "" };
+  }
+}
+
+function scoreSource(title: string, stem: string): number {
+  const t = title.toLowerCase();
+  let s = 0;
+  if (t.includes("catalog") || stem.includes("/catalog/")) s += 3;
+  if (t.includes("requirements") || t.includes("degree")) s += 2;
+  if (t.includes("program") || t.includes("ph.d") || t.includes("ms") || t.includes("m.s")) s += 1;
+  return s;
+}
+
+function dedupeAndRank(raw: RawSource[]): (RawSource & { stem: string; domain: string; score: number })[] {
+  const enriched = raw.map(r => {
+    const n = normalizeUrl(r.url);
+    return { ...r, ...n, score: scoreSource(r.title, n.stem) };
+  });
+
+  // Keep the best per *full URL* (includes #anchor). If URL is missing, fall back to title
+  // so title-only items are not dropped.
+  const best = new Map<string, (RawSource & { stem: string; domain: string; score: number })>();
+  for (const e of enriched) {
+    const urlKey = (e.url ?? "").trim().toLowerCase(); // preserves #anchor if present
+    const key = urlKey || e.title.trim().toLowerCase();
+    const prev = best.get(key);
+    if (!prev || e.score > prev.score) best.set(key, e);
+  }
+
+  return Array.from(best.values()).sort((a, b) => b.score - a.score || a.title.length - b.title.length);
+}
+
+function splitAndLabel(
+  ranked: (RawSource & { stem: string; domain: string })[],
+  visibleMax = VISIBLE_SOURCE_CAP
+): { visible: ProcessedSource[]; hidden: ProcessedSource[] } {
+  const visible = ranked.slice(0, visibleMax);
+  const hidden = ranked.slice(visibleMax);
+
+  // Count duplicates by exact title (case-insensitive) across ALL sources (visible + hidden)
+  const normalizeTitle = (t: string) => t.trim().replace(/\s+/g, " ").toLowerCase();
+  const titleCounts: Record<string, number> = {};
+  ranked.forEach(v => {
+    const key = normalizeTitle(v.title);
+    titleCounts[key] = (titleCounts[key] || 0) + 1;
+  });
+
+  const titleIndex: Record<string, number> = {};
+  const labeledVisible: ProcessedSource[] = visible.map(v => {
+    const key = normalizeTitle(v.title);
+    if (titleCounts[key] > 1) {
+      titleIndex[key] = (titleIndex[key] || 0) + 1;
+      return { ...v, label: `${v.title} (${titleIndex[key]})` };
+    }
+    return { ...v, label: v.title };
+  });
+
+  const processedHidden: ProcessedSource[] = hidden.map(h => {
+    const key = normalizeTitle(h.title);
+    if (titleCounts[key] > 1) {
+      titleIndex[key] = (titleIndex[key] || 0) + 1;
+      return { ...h, label: `${h.title} (${titleIndex[key]})` };
+    }
+    return { ...h, label: h.title };
+  });
+  return { visible: labeledVisible, hidden: processedHidden };
+}
+
+function processSources(rawLines: string[], visibleMax = VISIBLE_SOURCE_CAP) {
+  const parsed: RawSource[] = rawLines.map(parseSourceLine);
+  const ranked = dedupeAndRank(parsed);
+  return splitAndLabel(ranked, visibleMax);
+}
+// ----- End sources helpers -----
+
 export default function Home() {
   const [sessionId] = useState(() => crypto.randomUUID());
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -244,39 +344,58 @@ export default function Home() {
                     </div>
                     <div className="bg-[var(--unh-light-gray)] text-black rounded-2xl break-words whitespace-pre-line m-1 px-6 py-4 text-lg md:text-xl max-w-[800px] w-fit block box-border shadow-md">
                       <div>{msg.content}</div>
-                      {Array.isArray(msg.sources) && msg.sources.length > 0 && (
-                        <div className="mt-4">
-                          <div className="font-semibold text-sm mb-1">
-                            Sources:
+                      {Array.isArray(msg.sources) && msg.sources.length > 0 && (() => {
+                        const { visible, hidden } = processSources(msg.sources, VISIBLE_SOURCE_CAP);
+                        return (
+                          <div className="mt-4">
+                            <div className="font-semibold text-sm mb-1">
+                              Sources:
+                            </div>
+                            <ul className="list-disc list-inside text-sm text-gray-700">
+                              {visible.map((s, idx) => (
+                                <li key={`vis-${idx}`}>
+                                  {s.url ? (
+                                    <a
+                                      href={s.url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="underline text-blue-700"
+                                    >
+                                      {s.label}
+                                    </a>
+                                  ) : (
+                                    s.label
+                                  )}
+                                </li>
+                              ))}
+                            </ul>
+
+                            {hidden.length > 0 && (
+                              <details className="mt-1">
+                                <summary className="cursor-pointer text-sm">More sources ({hidden.length})</summary>
+                                <ul className="list-disc list-inside text-sm text-gray-700 mt-1">
+                                  {hidden.map((s, idx) => (
+                                    <li key={`hid-${idx}`}>
+                                      {s.url ? (
+                                        <a
+                                          href={s.url}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="underline text-blue-700"
+                                        >
+                                          {s.label}
+                                        </a>
+                                      ) : (
+                                        s.label
+                                      )}
+                                    </li>
+                                  ))}
+                                </ul>
+                              </details>
+                            )}
                           </div>
-                          <ul className="list-disc list-inside text-sm text-gray-700">
-                            {msg.sources.map((src, idx) => {
-                              const match = src.match(/^-\s*(.+)\s*\(([^)]+)\)$/);
-                              if (match) {
-                                const title = match[1];
-                                const url = match[2];
-                                return (
-                                  <li key={idx}>
-                                    {url ? (
-                                      <a
-                                        href={url}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="underline text-blue-700"
-                                      >
-                                        {title}
-                                      </a>
-                                    ) : (
-                                      title
-                                    )}
-                                  </li>
-                                );
-                              }
-                              return <li key={idx}>{src}</li>;
-                            })}
-                          </ul>
-                        </div>
-                      )}
+                        );
+                      })()}
                     </div>
                   </div>
                 );

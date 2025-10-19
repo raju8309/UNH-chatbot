@@ -16,13 +16,11 @@ from sklearn.model_selection import train_test_split
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from main import (
-    load_retrieval_cfg,
-    load_initial_data, 
-    get_context,
-    get_prompt,
-    UNKNOWN
-)
+from config.settings import load_retrieval_config
+from models.ml_models import initialize_models
+from services.chunk_service import load_initial_data
+from services.qa_service import get_context
+from services.qa_service import get_prompt
 
 def create_training_data():
     """Generate training data using existing retrieval pipeline"""
@@ -138,7 +136,8 @@ if __name__ == "__main__":
     
     # Load data
     print("Loading data...")
-    load_retrieval_cfg()
+    load_retrieval_config()
+    initialize_models()
     load_initial_data()
     
     # Create training data
