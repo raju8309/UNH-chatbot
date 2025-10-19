@@ -8,7 +8,7 @@ from transformers import pipeline
 embed_model: SentenceTransformer = None
 qa_pipeline: Any = None
 
-def initialize_models() -> None:
+def initialize_models(fine_tuned : bool = True) -> None:
     global embed_model, qa_pipeline
     
     # initialize embedding model
@@ -18,7 +18,7 @@ def initialize_models() -> None:
     # load trained model if available, otherwise use default
     trained_path = Path(__file__).parent.parent / "train" / "models" / "flan-t5-small-finetuned"
     
-    if trained_path.exists() and (trained_path / "config.json").exists():
+    if fine_tuned and trained_path.exists() and (trained_path / "config.json").exists():
         model_name = str(trained_path)
         print(f"Using fine-tuned model: {trained_path}")
     else:

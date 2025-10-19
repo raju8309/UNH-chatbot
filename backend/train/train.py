@@ -137,7 +137,7 @@ if __name__ == "__main__":
     # Load data
     print("Loading data...")
     load_retrieval_config()
-    initialize_models()
+    initialize_models(False)
     load_initial_data()
     
     # Create training data
