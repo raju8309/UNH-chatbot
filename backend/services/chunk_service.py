@@ -17,6 +17,7 @@ chunks_embeddings: Optional[np.ndarray] = None
 chunk_texts: List[str] = []
 chunk_sources: List[Dict[str, Any]] = []
 chunk_meta: List[Dict[str, Any]] = []
+CHUNK_NORMS: Optional[np.ndarray] = None
 
 def _compute_meta_from_source(src: Dict[str, Any]) -> Dict[str, Any]:
     return compute_tier(src.get("url", ""), src.get("title", ""))
@@ -36,6 +37,7 @@ def save_chunks_cache() -> None:
                 "sources": chunk_sources,
                 "embeddings": chunks_embeddings,
                 "meta": chunk_meta,
+                "norms": CHUNK_NORMS
             },
             f,
         )
@@ -44,8 +46,7 @@ def save_chunks_cache() -> None:
 
 
 def load_chunks_cache() -> bool:
-    global chunk_texts, chunk_sources, chunks_embeddings, chunk_meta
-    
+    global chunk_texts, chunk_sources, chunks_embeddings, chunk_meta, CHUNK_NORMS
     if not CACHE_PATH.exists():
         return False
     
@@ -55,6 +56,7 @@ def load_chunks_cache() -> bool:
     chunk_texts = data.get("texts", [])
     chunk_sources = data.get("sources", [])
     chunks_embeddings = data.get("embeddings")
+    CHUNK_NORMS = data.get("norms")
     cached_meta = data.get("meta")
     
     if cached_meta:
@@ -68,8 +70,9 @@ def load_chunks_cache() -> bool:
         chunk_sources = []
         chunk_texts = []
         return False
-    
-    print(f"Loaded {len(chunk_texts)} chunks from cache")
+    if CHUNK_NORMS is None and chunks_embeddings is not None:
+        CHUNK_NORMS = np.linalg.norm(chunks_embeddings, axis=1)
+    print(f"Loaded {len(chunk_texts)} chunks from cache.")
     return True
 
 
@@ -164,12 +167,14 @@ def load_json_file(path: str) -> None:
         chunk_texts.extend(new_texts)
         chunk_sources.extend(new_sources)
         chunk_meta.extend(new_meta)
-        
+        global CHUNK_NORMS
+        if chunks_embeddings is not None:
+            CHUNK_NORMS = np.linalg.norm(chunks_embeddings, axis=1)
         print(f"Loaded {len(new_texts)} chunks from {path}")
-        print(f"Pages parsed: {page_count}")
-        print(f"Total chunks: {len(chunk_texts)}")
     else:
         print(f"WARNING: No text found in {path}")
+    print(f"[loader] Pages parsed: {page_count}")
+    print(f"[loader] New chunks: {len(new_texts)}  |  Total chunks: {len(chunk_texts)}")
 
 
 def load_catalog(path: Path) -> None:
@@ -203,3 +208,10 @@ def get_tier_counts() -> Dict[int, int]:
         if tier in counts:
             counts[tier] += 1
     return counts
+
+def get_chunk_norms() -> Optional[np.ndarray]:
+    """Get the precomputed chunk norms, computing them if needed."""
+    global CHUNK_NORMS, chunks_embeddings
+    if CHUNK_NORMS is None and chunks_embeddings is not None:
+        CHUNK_NORMS = np.linalg.norm(chunks_embeddings, axis=1)
+    return CHUNK_NORMS
