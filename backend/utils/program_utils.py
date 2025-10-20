@@ -186,7 +186,7 @@ def match_program_alias(message: str) -> Optional[Dict[str, str]]:
             url = rec.get("url") or ""
             if q_slug in url:
                 return {"title": rec["title"], "url": rec["url"]}
-
+    
     # fallback: embedding-based similarity (precomputed)
     global _PROGRAM_EMBEDDINGS
     q_tokens_set = set(q_norm.split())
@@ -206,31 +206,30 @@ def match_program_alias(message: str) -> Optional[Dict[str, str]]:
         np.linalg.norm(title_vecs, axis=1) * np.linalg.norm(q_vec) + 1e-8
     )
     best_idx = int(np.argmax(sims))
-    best_sim = float(sims[best_idx])
+    best = candidates[best_idx]
 
     if wants_ms or wants_phd or wants_cert or wants_undergrad:
-        is_ms, is_phd, is_cert, is_ug = _degree_flags(best)
+        is_ms, is_phd, is_cert, is_ug = _degree_flags(best[1])
         aligns = (
             (wants_ms and is_ms) or (wants_phd and is_phd) or (wants_cert and is_cert) or (wants_undergrad and is_ug)
         )
         if not aligns:
             aligned_idx = None
             best_aligned_score = -1.0
-            for i, rec in enumerate(cands_overlap):
-                ims, iphd, icert, iug = _degree_flags(rec)
+            for i, rec in enumerate(candidates):
+                ims, iphd, icert, iug = _degree_flags(rec[1])
                 if (wants_ms and ims) or (wants_phd and iphd) or (wants_cert and icert) or (wants_undergrad and iug):
                     if sims[i] > best_aligned_score:
                         best_aligned_score = sims[i]
                         aligned_idx = i
             if aligned_idx is not None:
-                best = cands_overlap[aligned_idx]
+                best = candidates[aligned_idx]
                 best_idx = aligned_idx
 
     if float(sims[best_idx]) < 0.45:
         return None
     
-    best = candidates[best_idx][1]
-    return {"title": best["title"], "url": best["url"]}
+    return {"title": best[1]["title"], "url": best[1]["url"]}
 
 def update_section_stopwords(new_stopwords: List[str]) -> None:
     """Update the section stopwords used for filtering program pages."""
