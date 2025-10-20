@@ -14,17 +14,16 @@ from pathlib import Path
 from datetime import datetime
 import argparse
 
-# ----- Paths -----
-ROOT = Path(__file__).resolve().parents[2]  # repo root
+#  Paths 
+ROOT = Path(__file__).resolve().parents[2]  
 AUTO_DIR = ROOT / "automation_testing"
 CTX_DIR  = AUTO_DIR / "contextual_awareness"
 GOLD     = CTX_DIR / "context_gold.jsonl"
-EVAL     = AUTO_DIR / "evaluator.py"  # used only if --score is passed
-
+EVAL     = AUTO_DIR / "evaluator.py" 
 # Make backend importable
 sys.path.insert(0, str(ROOT / "backend"))
 
-# ----- Import pipeline pieces (align with main run_tests.py) -----
+# Import pipeline pieces (align with main run_tests.py) 
 from config.settings import load_retrieval_config
 from models.ml_models import initialize_models
 from services.chunk_service import load_initial_data
