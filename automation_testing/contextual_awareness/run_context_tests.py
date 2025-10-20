@@ -39,7 +39,7 @@ def main():
     args = ap.parse_args()
 
     if not GOLD.exists():
-        raise SystemExit(f"❌ Missing contextual gold file: {GOLD}")
+        raise SystemExit(f" Missing contextual gold file: {GOLD}")
 
     # Create timestamped report directory inside contextual_awareness/reports/
     stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -78,16 +78,16 @@ def main():
             }, ensure_ascii=False) + "\n")
             n += 1
 
-    print(f"✅ Wrote {n} predictions -> {preds_path}")
+    print(f"Wrote {n} predictions -> {preds_path}")
 
     # Optional scoring (off by default)
     if args.score:
         if not EVAL.exists():
             print("⚠️ evaluator.py not found; skipping scoring.")
         else:
-            print("📊 Running evaluator.py…")
+            print(" Running evaluator.py…")
             subprocess.check_call([sys.executable, str(EVAL), "--output-dir", str(out_dir)])
-            print(f"📁 Scoring output in: {out_dir}")
+            print(f" Scoring output in: {out_dir}")
 
     print("\nDone. Context report folder:")
     print(f"  {out_dir}")
