@@ -1,0 +1,117 @@
+[
+    {
+        "query": "What is the repeat rule for MARI 895?",
+        "answer": "MAR 801 may be repeated for a maximum of 8 credits.",
+        "url": "https://catalog.unh.edu/graduate/course-descriptions/mari/"
+    },
+    {
+        "query": "Does HRM 820 have any prerequisites?",
+        "answer": "HRM 820 requires HRM 805 with a minimum grade of B-.",
+        "url": "https://catalog.unh.edu/graduate/course-descriptions/hrm/"
+    },
+    {
+        "query": "What is the equivalent of PPOL 812?",
+        "answer": "PPOL 912 is the equivalent of PPOL 812.",
+        "url": "https://catalog.unh.edu/graduate/course-descriptions/ppol/"
+    },
+    {
+        "query": "Can I repeat PPOL 897?",
+        "answer": "Yes, PPOL 897 may be repeated for a maximum of 6 credits.",
+        "url": "https://catalog.unh.edu/graduate/course-descriptions/ppol/"
+    },
+    {
+        "query": "How many credits is MARI 801?",
+        "answer": "MAR 801 is a 1-credit course.",
+        "url": "https://catalog.unh.edu/graduate/course-descriptions/mari/"
+    },
+    {
+        "query": "What is the grade mode for PHYS 899?",
+        "answer": "The grade mode for PHYS 895 is graduate credit/fail.",
+        "url": "https://catalog.unh.edu/graduate/programs-study/physics/#coursestext"
+    },
+    {
+        "query": "What is the grade mode for PHYS 895?",
+        "answer": "The grade mode for PHYS 895 is letting grading.",
+        "url": "https://catalog.unh.edu/graduate/programs-study/physics/#coursestext"
+    },
+    {
+        "query": "How many credits is GEN 806?",
+        "answer": "GEN 806 is a 4-credit course.",
+        "url": "https://catalog.unh.edu/graduate/programs-study/genetics/#coursestext"
+    },
+    {
+        "query": "How many credits is GEN 825?",
+        "answer": "GEN 825 is a 2-credit course.",
+        "url": "https://catalog.unh.edu/graduate/programs-study/genetics/#coursestext"
+    },
+    {
+        "query": "Does the Genetics program offer both M.S. and Ph.D. degrees?",
+        "answer": "Yes, the Genetics program at UNH offers both Master of Science (M.S.) and Doctor of Philosophy (Ph.D.) degrees.",
+        "url": "https://catalog.unh.edu/graduate/programs-study/genetics/"
+    },
+    {
+        "query": "What courses are offered for Life Sciences and Agriculture (LSA)?",
+        "answer": "No courses are currently active in the course inventory for this subject prefix.",
+        "url": "https://catalog.unh.edu/graduate/course-descriptions/lsa/"
+    },
+    {
+        "query": "How many credits is Mathematical Economics?",
+        "answer": "Mathematical Economics is a 0 or 4 credit course.",
+        "url": "https://catalog.unh.edu/graduate/course-descriptions/econ/"
+    },
+    {
+        "query": "Does Analytical Economics in Practice have any co-requisites?",
+        "answer": "Analytical Economics in Practice has ECON 927 as a co-requisite.",
+        "url": "https://catalog.unh.edu/graduate/course-descriptions/econ/"
+    },
+    {
+        "query": "What are the prerequisites for Environmental Valuation?",
+        "answer": "ECON 926 with a minimum grade of B- and ECON 927 with a minimum grade of B- and ECON 976 with a minimum grade of B-.",
+        "url": "https://catalog.unh.edu/graduate/course-descriptions/econ/"
+    },
+    {
+        "query": "Does ZOOL 810 have a special fee?",
+        "answer": "Yes, ZOOL 810 has a special fee.",
+        "url": "https://catalog.unh.edu/graduate/course-descriptions/zool/"
+    },
+    {
+        "query": "What is the repeat rule for EDC 844?",
+        "answer": "EDC 844 may be repeated unlimited times.",
+        "url": "https://catalog.unh.edu/graduate/course-descriptions/edc/"
+    },
+    {
+        "query": "What is MUSI 831?",
+        "answer": "Physical aspects, equipment of conductor, fundamental gestures and beats, baton techniques. Reading and analysis of full and condensed scores, study of transposition, psychology of rehearsal.",
+        "url": "https://catalog.unh.edu/graduate/course-descriptions/musi/"
+    },
+    {
+        "query": "What is ANSC 810?",
+        "answer": "Feeding and related management of dairy cows, nutrients and their use, digestive anatomy, physiology, energy systems, forage quality and conservation methods, metabolic disorders, ration balancing.",
+        "url": "https://catalog.unh.edu/graduate/course-descriptions/ansc/"
+    },
+    {
+        "query": "What is ACFI 820?",
+        "answer": "Provides coverage of advanced topics from a strategic viewpoint and an understanding of the history and development of taxation, the role taxes play in financial and managerial decisions, and how taxes motivate people and institutions. The major tax issues inherent in business and financial transactions and their consequences are also explored.",
+        "url": "https://catalog.unh.edu/graduate/course-descriptions/acfi/"
+    },
+    {
+        "query": "Tell me about CEE 806",
+        "answer": "This course teaches knowledge and hands-on skills in conducting environmental life cycle assessment (LCA), which is a widely used technique by industries, academics, and governments. Students will learn to use popular LCA software (e.g., SimaPro), apply proper LCA techniques, critically analyze LCA results, and provide client-oriented suggestions during this course. Class time is primarily devoted to a combination of lectures and computer labs.",
+        "url": "https://catalog.unh.edu/graduate/programs-study/civil-environmental-engineering/#coursestext"
+    },
+    {
+        "query": "What's JUST 802 about?",
+        "answer": " Provides students with a graduate level review of the law and society field. Interdisciplinary study of the relationship between law and society. Topics include how society shapes legal decision-making and dispute resolution, law as social control and as social change, and legal ideologies and legal consciousness.",
+        "url": "https://catalog.unh.edu/graduate/programs-study/justice-studies/#coursestext"
+    },
+    {
+        "query": "What's the culminating project for the Justice Studies program?",
+        "answer": "Students conduct a project related to their internship under the supervision of a faculty member. Projects might include an evaluation of a community policing program, interviews with battered women in a shelter, or a survey of corporal punishment.",
+        "url": "https://catalog.unh.edu/graduate/programs-study/justice-studies/#coursestext"
+    },
+    {
+        "query": "What's the repeat rule for JUST 899?",
+        "answer": "Just 899 may be repeated for a maximum of 8 credits. May be repeated up to 1 time.",
+        "url": "https://catalog.unh.edu/graduate/programs-study/justice-studies/#coursestext"
+    }
+]

@@ -1,6 +1,7 @@
 # Python
 .venv/
 venv/
+.eval-venv/
 __pycache__/
 *.pyc
 
@@ -10,6 +11,5 @@ __pycache__/
 /backend/.backend-venv/
 /backend/train/models/
 /.model_cache/
+
 **/__pycache__/
-.DS_Store
-.DS_Store

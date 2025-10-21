@@ -1271,7 +1271,6 @@ export default function TestResultsPage() {
                                 </div>
 
                                 <div className="mt-4">
-                                  <h4 className="font-semibold text-gray-800 mb-2">Retrieved Documents:</h4>
                                   <RetrievedDocuments retrievedIds={pred.retrieved_ids} />
                                 </div>
 

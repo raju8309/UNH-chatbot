@@ -52,14 +52,14 @@ intent:
 
 nudges:
   policy_acadreg_url: 1.07
-  same_program_bonus: 2.00
-  course_url_bonus: 1.80
-  course_title_bonus: 1.40
-  other_program_tier34_penalty: 0.60
+  same_program_bonus: 2.00            # used when alias_url matches same program family
+  course_url_bonus: 1.80              # boost when URL is the course search/description page
+  course_title_bonus: 1.40            # boost when title starts with the course code
+  other_program_tier34_penalty: 0.25  # strong demotion for program pages on course queries
 
 guarantees:
   ensure_tier1_on_policy: true
-  ensure_tier4_on_program: true
+  ensure_tier4_on_program: true       # still true, but main.py disables this for course queries
 
 tier4_gate:
   use_embedding: true
@@ -84,16 +84,7 @@ followups:
     - "this"
     - "same"
 
-program_index:
-  section_stopwords:
-    - upon completion
-    - program learning outcomes
-    - admission requirements
-    - requirements
-    - application requirements
-    - core courses
-    - electives
-    - overview
-    - policies
-    - sample
-    - plan of study
+# course retrieval strictness
+course_filters:
+  strict_subject_on_code: true   # only keep same-subject chunks for course-code queries
+  tier3_bonus: 1.30              # keep from before
