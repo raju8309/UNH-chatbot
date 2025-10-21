@@ -11,3 +11,4 @@ __pycache__/
 /backend/train/models/
 /.model_cache/
 **/__pycache__/
+.DS_Store
