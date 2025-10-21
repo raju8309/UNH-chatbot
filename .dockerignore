@@ -64,10 +64,4 @@ docker-compose.yml
 htmlcov/
 .tox/
 
-# Large model files (if any)
-*.pt
-*.pth
-*.bin
-*.h5
-models/
 EOF
