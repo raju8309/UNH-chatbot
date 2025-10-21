@@ -45,11 +45,6 @@ frontend/dist/
 .gitignore
 .gitattributes
 
-# Docker
-Dockerfile
-.dockerignore
-docker-compose.yml
-
 # Misc
 .DS_Store
 *.log
@@ -63,5 +58,8 @@ docker-compose.yml
 .coverage
 htmlcov/
 .tox/
+
+# Large model files (if any)
+backend/train/models/
 
 EOF
