@@ -126,28 +126,9 @@ def process_question_for_retrieval(
     if new_alias and isinstance(new_alias, dict):
         alias_url = new_alias.get("url")
 
-    intent_key = new_intent or sess.get("intent")
-    detected_course_obj = detected_course
-    if detected_course_obj and (intent_key == "course_info"):
-        scoped_message = f"course details and prerequisites for {detected_course_obj['norm']}"
-    else:
-        if intent_key in INTENT_TEMPLATES:
-            scoped_message = INTENT_TEMPLATES[intent_key]
-            if new_alias and isinstance(new_alias, dict):
-                scoped_message += f" for {new_alias['title']}"
-            if new_level and new_level != "unknown" and intent_key != "degree_credits":
-                scoped_message += f" ({new_level})"
-        else:
-            if new_alias and isinstance(new_alias, dict):
-                scoped_message = f"{base_topic} for {new_alias['title']}"
-            if new_level and new_level != "unknown" and (not new_alias or intent_key not in INTENT_TEMPLATES):
-                scoped_message += f" ({new_level})"
-
-    course_norm = detected_course_obj["norm"] if detected_course_obj else None
-    if intent_key == "gpa_minimum":
-        alias_url = None
+    # Not using scoped_message, intent_key, or course_norm as they all tank the test answers/scores
     answer, sources, retrieval_path, context = cached_answer_with_path(
-        scoped_message, alias_url=alias_url, intent_key=intent_key, course_norm=course_norm
+        incoming_message, alias_url=alias_url, intent_key=None, course_norm=None
     )
 
     return dict(
@@ -156,9 +137,9 @@ def process_question_for_retrieval(
         retrieval_path=retrieval_path,
         session_updates=session_updates,
         context=context,
-        intent=intent_key,
+        intent=None,
         program_level=new_level,
         program_alias=new_alias,
-        course_code=detected_course_obj,
+        course_code=None,
         scoped_message=scoped_message,
     )

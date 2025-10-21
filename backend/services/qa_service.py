@@ -156,14 +156,10 @@ def _answer_question(
 
     if not idxs:
         return "I couldn't find relevant information in the catalog.", [], retrieval_path, None
-    # add course hint if applicable
-    course_hint = ""
-    if course_norm and intent_key == "course_info":
-        course_hint = f" Focus on credits, prerequisites, and grade mode for {course_norm} if present."
     # generate answer
     try:
         result = qa_pipeline(
-            get_prompt(question + course_hint, context),
+            get_prompt(question, context),
             max_new_tokens=128,
             repetition_penalty=1.2,
             no_repeat_ngram_size=2,

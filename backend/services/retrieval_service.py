@@ -7,7 +7,7 @@ from models.ml_models import get_embed_model
 from services.chunk_service import get_chunks_data, get_chunk_norms
 from services.intent_service import is_admissions_url, is_degree_requirements_url, has_admissions_terms, has_policy_terms
 from utils.course_utils import url_contains_course, title_starts_with_course, extract_title_leading_subject
-from utils.program_utils import same_program_family, mentions_blocked_program, is_blocked_program_url
+from utils.program_utils import same_program_family
 
 def _tier_boost(tier: int) -> float:
     cfg = get_config()
@@ -41,55 +41,13 @@ def _tier4_is_relevant_embed(query: str, idx: int) -> bool:
     thresh = float(gate.get("min_title_sim", 0.42))
     return sim >= thresh
 
-# --- Diversity helper: drop near-duplicate chunks from the same URL/section
-def _dedup_same_block_keep_order(final: List[int], k: int, ordered: List[int]) -> List[int]:
-    cfg = get_config()
-    _, chunk_texts, chunk_sources, _ = get_chunks_data()
-    try:
-        if not cfg.get("diversity", {}).get("same_block_drop", True):
-            return final[:k]
-        seen: set = set()
-        out: List[int] = []
-        for i in final:
-            if i >= len(chunk_sources) or i >= len(chunk_texts):
-                continue
-            src = chunk_sources[i] or {}
-            base_url = (src.get("url") or "").split("#")[0]
-            title_key = (src.get("title") or "").strip().lower()
-            text_key = re.sub(r"\s+", " ", (chunk_texts[i] or "").strip().lower())[:160]
-            key = (base_url, title_key, text_key[:80])
-            if key in seen:
-                continue
-            seen.add(key)
-            out.append(i)
-        if len(out) < k:
-            for i in ordered:
-                if len(out) >= k:
-                    break
-                if i in out:
-                    continue
-                if i >= len(chunk_sources) or i >= len(chunk_texts):
-                    continue
-                src = chunk_sources[i] or {}
-                base_url = (src.get("url") or "").split("#")[0]
-                title_key = (src.get("title") or "").strip().lower()
-                text_key = re.sub(r"\s+", " ", (chunk_texts[i] or "").strip().lower())[:160]
-                key = (base_url, title_key, text_key[:80])
-                if key in seen:
-                    continue
-                seen.add(key)
-                out.append(i)
-        return out[:k]
-    except Exception:
-        return final[:k]
-
 def search_chunks(
     query: str,
     topn: int = 40,
     k: int = 5,
     alias_url: Optional[str] = None,
     intent_key: Optional[str] = None,
-    course_norm: Optional[str] = None,
+    course_norm: Optional[str] = None
 ) -> Tuple[List[int], List[Dict[str, Any]]]:
     cfg = get_config()
     policy_terms = get_policy_terms()
@@ -134,7 +92,7 @@ def search_chunks(
         meta_i = chunk_meta[i] if i < len(chunk_meta) else {}
         tier = meta_i.get("tier", 2)
 
-        # CHANGED: course queries → allow Tier 3 (preferred), skip only Tier 4 (program pages)
+        # course queries → allow Tier 3 (preferred), skip only Tier 4 (program pages)
         if course_norm and tier == 4:
             continue
 
@@ -156,15 +114,6 @@ def search_chunks(
                     continue
             except Exception:
                 # Be conservative: if anything is odd, drop it
-                continue
-
-        # Program blocklist for Tier-3/4 unless explicitly allowed/aliased
-        if tier in (3, 4):
-            src_i = chunk_sources[i] if i < len(chunk_sources) else {}
-            url_i = (src_i.get("url") or "")
-            title_i = (src_i.get("title") or "")
-            hard_block = is_blocked_program_url(url_i) or bool(re.search(r"\boccupational therapy\b|\b\bot\b", title_i.lower()))
-            if hard_block and not (mentions_blocked_program(query) or (alias_url and same_program_family(url_i, alias_url))):
                 continue
 
         if looks_policy:
@@ -402,9 +351,6 @@ def search_chunks(
                 except Exception:
                     pass
             final = dedup[:k]
-
-    if cfg.get("diversity", {}).get("enable", True):
-        final = _dedup_same_block_keep_order(final, k, ordered)
 
     retrieval_path = []
     for rank, i in enumerate(final, start=1):

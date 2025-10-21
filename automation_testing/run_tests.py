@@ -1,104 +1,87 @@
 #!/usr/bin/env python3
-"""
-Context-only runner
-- Uses backend pipeline to answer Qs in contextual_awareness/context_gold.jsonl
-- Writes timestamped folder under contextual_awareness/reports/
-- Saves:
-    - context_gold.jsonl (copy of input gold)
-    - preds.jsonl        (model answers + retrieved ids)
-- Optional: --score will run automation_testing/evaluator.py into the same folder.
-"""
-
-from __future__ import annotations
-import sys, json, shutil, subprocess
+import sys, subprocess, json
+import shutil
 from pathlib import Path
 from datetime import datetime
-import argparse
+import asyncio
 
-# ----- Paths -----
-ROOT = Path(__file__).resolve().parents[2]  # repo root
-AUTO_DIR = ROOT / "automation_testing"
-CTX_DIR  = AUTO_DIR / "contextual_awareness"
-GOLD     = CTX_DIR / "context_gold.jsonl"
-EVAL     = AUTO_DIR / "evaluator.py"  # used only if --score is passed
+ROOT   = Path(__file__).resolve().parents[1]
+PY     = sys.executable
+EVAL   = ROOT / "automation_testing" / "evaluator.py"
+GOLD   = ROOT / "automation_testing" / "gold.jsonl"
 
-# Make backend importable
 sys.path.insert(0, str(ROOT / "backend"))
 
-# ----- Import your pipeline pieces -----
 from config.settings import load_retrieval_config
 from models.ml_models import initialize_models
 from services.chunk_service import load_initial_data
-from services.query_pipeline import process_question_for_retrieval
+from services.session_service import clear_all_sessions
+from routers.chat import answer_question
+from models.api_models import ChatRequest
 
+def run(cmd):
+    print("→", " ".join(str(c) for c in cmd))
+    subprocess.check_call(cmd)
 
-def main():
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--score", action="store_true",
-                    help="Also run evaluator.py to create report.json (optional).")
-    args = ap.parse_args()
-
+async def main():
     if not GOLD.exists():
-        raise SystemExit(f"❌ Missing contextual gold file: {GOLD}")
+        raise SystemExit(f"Missing gold file: {GOLD}")
+    if not EVAL.exists():
+        raise SystemExit(f"Missing evaluator: {EVAL}")
 
-    # Create timestamped report directory inside contextual_awareness/reports/
-    stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    reports_dir = CTX_DIR / "reports"
-    out_dir = reports_dir / stamp
-    out_dir.mkdir(parents=True, exist_ok=True)
+    # Create timestamped report directory
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    reports_dir = ROOT / "automation_testing" / "reports"
+    report_dir = reports_dir / f"{timestamp}"
+    report_dir.mkdir(parents=True, exist_ok=True)
 
-    # Copy gold to report folder (named context_gold.jsonl)
-    gold_copy = out_dir / "context_gold.jsonl"
+    # Copy gold.jsonl to the test run directory
+    gold_copy = report_dir / "gold.jsonl"
     shutil.copy2(GOLD, gold_copy)
-    print(f"📄 Copied gold -> {gold_copy}")
+    print(f"Copied {GOLD} to {gold_copy}")
 
-    # Initialize your pipeline (this loads retrieval config, T5 model, and chunks)
-    print("🔧 Initializing pipeline…")
+    # Load catalog
     load_retrieval_config()
     initialize_models()
     load_initial_data()
 
-    # Generate predictions
-    preds_path = out_dir / "preds.jsonl"
-    n = 0
-    with GOLD.open("r", encoding="utf-8") as fin, preds_path.open("w", encoding="utf-8") as fout:
+    # Generate predictions using the real pipeline
+    preds_path = report_dir / "preds.jsonl"
+    with open(GOLD, "r", encoding="utf-8") as fin, open(preds_path, "w", encoding="utf-8") as fout:
         for line in fin:
-            line = line.strip()
-            if not line:
+            if not line.strip():
                 continue
             rec = json.loads(line)
             qid = rec["id"]
             q   = rec["query"]
 
-            result = process_question_for_retrieval(q)
-            ans = result["answer"]
-            retrieved_ids = result["retrieval_path"]
+            response = await answer_question(ChatRequest(message=q))
+            clear_all_sessions()
+            
             fout.write(json.dumps({
                 "id": qid,
-                "query": q,
-                "model_answer": ans,
-                "retrieved_ids": retrieved_ids
+                "model_answer": response.answer,
+                "retrieved_ids": response.retrieval_path
             }, ensure_ascii=False) + "\n")
-            n += 1
 
-    print(f"✅ Wrote {n} predictions -> {preds_path}")
+    print(f"Wrote predictions to {preds_path}")
 
-    # Optional scoring (off by default)
-    if args.score:
-        if not EVAL.exists():
-            print("⚠️ evaluator.py not found; skipping scoring.")
-        else:
-            print("📊 Running evaluator.py…")
-            subprocess.check_call([sys.executable, str(EVAL), "--output-dir", str(out_dir)])
-            print(f"📁 Scoring output in: {out_dir}")
 
-    print("\nDone. Context report folder:")
-    print(f"  {out_dir}")
-    print(f"   ├─ context_gold.jsonl")
-    print(f"   └─ preds.jsonl")
-    if args.score:
-        print(f"   └─ report.json (if produced)")
+    run([PY, str(EVAL), "--output-dir", str(report_dir)])
 
+    report_file = report_dir / "report.json"
+    if report_file.exists():
+        try:
+            data = json.loads(report_file.read_text())
+            print("\n=== Summary ===")
+            print(json.dumps(data.get("summary", data), indent=2))
+        except Exception as e:
+            print(f"(Could not read summary: {e})")
+
+    print(f"\n Done. Outputs in: {report_dir}")
+    print(f" - {report_dir / 'gold.jsonl'} (copy of test data)")
+    print(f" - {report_dir / 'preds.jsonl'}")
+    print(f" - {report_dir / 'report.json'}")
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())

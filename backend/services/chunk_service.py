@@ -86,10 +86,15 @@ def load_json_file(path: str) -> None:
     new_meta: List[Dict[str, Any]] = []
     
     def add_chunk(text: str, title: str, url: str) -> None:
-        new_texts.append(text)
-        src = {"title": title, "url": url}
-        new_sources.append(src)
-        new_meta.append(_compute_meta_from_source(src))
+        # Only add if at least 3 words and either contains sentence-ending punctuation or is long enough
+        word_count = len(text.split())
+        has_sentence_punct = any(p in text for p in ".!?")
+        min_length = 30
+        if word_count >= 3 and (has_sentence_punct or len(text) >= min_length):
+            new_texts.append(text)
+            src = {"title": title, "url": url}
+            new_sources.append(src)
+            new_meta.append(_compute_meta_from_source(src))
     
     def process_section(
         section: Dict[str, Any],
@@ -116,8 +121,10 @@ def load_json_file(path: str) -> None:
         texts = section.get("text", [])
         if texts:
             for text_item in texts:
-                if isinstance(text_item, str) and text_item.strip():
-                    add_chunk(text_item.strip(), full_title, url)
+                if isinstance(text_item, str):
+                    stripped = text_item.strip()
+                    if stripped:
+                        add_chunk(stripped, full_title, url)
         
         # process lists (filter out short navigational items)
         lists = section.get("lists", [])
@@ -125,8 +132,10 @@ def load_json_file(path: str) -> None:
             for list_group in lists:
                 if isinstance(list_group, list):
                     for item in list_group:
-                        if isinstance(item, str) and item.strip() and len(item) > 5:
-                            add_chunk(item.strip(), full_title, url)
+                        if isinstance(item, str):
+                            stripped = item.strip()
+                            if stripped:
+                                add_chunk(stripped, full_title, url)
         
         # process subsections recursively
         subsections = section.get("subsections", [])
