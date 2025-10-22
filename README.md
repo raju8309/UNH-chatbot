@@ -171,7 +171,9 @@ git clone https://github.com/UNHM-TEAM-PROJECT/Fall2025-Team-Goopy.git
 cd Fall2025-Team-Goopy
 docker system prune -a --volumes
 docker build -t goopy-app .
-docker run -d -p 8003:8003 \
+docker run -d \
+  --name goopy-app \
+  -p 8003:8003 \
   -v $(pwd)/backend/train/models:/app/backend/train/models \
   goopy-app
 ```
