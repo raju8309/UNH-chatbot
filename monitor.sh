@@ -9,9 +9,9 @@ DOWNTIME_LOG="$LOG_DIR/downtime.log"
 CRASH_REPORT="$LOG_DIR/crash-reports.log"
 STATUS_FILE="$LOG_DIR/status.json"
 
-# alert Configuration
-ALERT_EMAIL="jmyshrall11@gmail.com"
-ALERT_WEBHOOK="https://wildcatsunh.webhook.office.com/webhookb2/46bd5398-9a87-4589-b01c-d257bfa17e57@d6241893-512d-46dc-8d2b-be47e25f5666/IncomingWebhook/1bc0081f3b6041709ab57bc4a4ceb63a/eef60a86-837c-4e3b-97b5-b668483f14a2/V2k3PuSUdirySsd2SkdSosMpvdPSnEy1qOdORj0s9IRgM1"
+# alert configuration
+ALERT_EMAIL="" # fill in after cloning
+ALERT_WEBHOOK="" # fill in after cloning
 
 # initialize
 mkdir -p "$LOG_DIR"
@@ -168,7 +168,7 @@ send_webhook_alert() {
             sed ':a;N;$!ba;s/\n/\\n/g' | \
             sed 's/\t/\\t/g')
 
-        # Create JSON payload
+        # create JSON payload
         local payload=$(cat <<EOF
 {
     "text": "$escaped_message"
@@ -351,10 +351,10 @@ send_detailed_down_alert() {
     local down_since=$1
     local container_id=$(get_container_id)
 
-    # Analyze the crash immediately when container goes down
+    # analyze the crash immediately when container goes down
     analyze_crash_cause "$container_id"
 
-    # Build detailed email body
+    # build detailed email body
     local email_body="ALERT: Container $CONTAINER_NAME has stopped running
 
 Time of Failure: $down_since
@@ -438,7 +438,7 @@ monitor_container() {
             local was_down=$(echo "$status" | grep -o '"is_down":[^,]*' | cut -d: -f2 | tr -d ' ')
 
             if [[ "$was_down" == "true" ]]; then
-                # Container recovered
+                # container recovered
                 local down_since=$(echo "$status" | grep -o '"down_since":"[^"]*"' | cut -d'"' -f4)
 
                 if [[ -n "$down_since" ]]; then
@@ -536,7 +536,7 @@ case "${1:-monitor}" in
         fi
         ;;
     analyze)
-        # Manual crash analysis
+        # manual crash analysis
         echo "Analyzing container crash..."
         container_id=$(get_container_id)
         if [[ -n "$container_id" ]]; then
