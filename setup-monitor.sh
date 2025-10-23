@@ -273,7 +273,7 @@ INSTALL_DIR="$INSTALL_DIR"
 echo "Updating monitor from repository..."
 
 if [[ ! -f "\$REPO_DIR/monitor.sh" ]]; then
-    echo "❌ Error: monitor.sh not found in \$REPO_DIR"
+    echo "Error: monitor.sh not found in \$REPO_DIR"
     exit 1
 fi
 
