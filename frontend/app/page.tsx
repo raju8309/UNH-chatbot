@@ -118,6 +118,7 @@ export default function Home() {
   const [displayedQuestions, setDisplayedQuestions] = useState<string[]>([]);
   const [fade, setFade] = useState(false);
   const chatEndRef = useRef<HTMLDivElement | null>(null);
+  const hasUserMessage = messages.some((m) => m.role === "user");
 
   // Auto-scroll chat
   useEffect(() => {
@@ -242,10 +243,10 @@ export default function Home() {
   };
 
   return (
-    <main className="h-screen flex flex-col bg-[var(--unh-white)] overflow-hidden">
+  <main className="min-h-screen h-screen flex flex-col bg-[var(--unh-white)]">
       <header
-        className="bg-[var(--unh-blue)] px-8 py-4 text-center shadow-md"
-        style={{ color: "#fff" }}
+        className="bg-[var(--unh-blue)] px-8 py-2 text-center shadow-md flex-none"
+        style={{ color: "#fff", zIndex: 20, position: "relative" }}
       >
         <div className="flex items-center">
           <img
@@ -264,46 +265,49 @@ export default function Home() {
             className="text-3xl font-bold"
             style={{ fontFamily: "Glypha, Arial, sans-serif" }}
           >
-            Graduate Catalog Chatbot
+            GradCatBot
           </span>
         </div>
       </header>
 
-      {/* Suggested questions section */}
-      {messages.find((m) => m.role === "user") === undefined && (
-        <section
-          className="flex flex-col justify-center items-center w-full max-w-3xl mx-auto min-h-[60vh] pt-24 pb-2"
-          style={{ flex: 1 }}
-        >
-          <h1 className="text-3xl font-bold mb-6 text-center text-gray-400">
-            What can I help with?
-          </h1>
-          <div
-            className={`grid grid-cols-1 sm:grid-cols-2 gap-6 w-full transition-opacity duration-300 ${
-              fade ? "opacity-0" : "opacity-100"
-            }`}
-          >
-            {displayedQuestions.map((q, idx) => (
-              <button
-                key={idx}
-                onClick={() => handleCardClick(q)}
-                className="bg-white shadow-md rounded-xl p-6 text-lg font-medium hover:bg-[var(--unh-light-gray)] hover:shadow-lg transition flex items-center justify-center min-h-[120px]"
+      {/* Middle content area: suggestions or chat messages */}
+      <div className="flex-1 flex flex-col items-center overflow-hidden min-h-0">
+        {!hasUserMessage ? (
+          <div className="flex-1 flex items-center justify-center w-full min-h-0 overflow-hidden">
+            <section
+              className="w-full max-w-3xl mx-auto px-6 py-4 flex flex-col flex-1 min-h-0 justify-center"
+              style={{ zIndex: 0, position: "relative" }}
+            >
+              <h1 className="text-3xl font-bold mb-4 text-center text-gray-400 flex-none">
+                What can I help with?
+              </h1>
+              <div
+                className={`grid grid-cols-1 sm:grid-cols-2 gap-4 w-full transition-opacity duration-300 pr-3 pb-8 pt-1 pl-1 ${
+                  fade ? "opacity-0" : "opacity-100"
+                } max-h-full overflow-y-auto`}
+                style={{ scrollbarGutter: 'stable both-edges' }}
               >
-                {q}
-              </button>
-            ))}
+                {displayedQuestions.map((q, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => handleCardClick(q)}
+                    className="bg-white shadow-lg rounded-xl p-3 sm:p-4 text-sm sm:text-base font-medium hover:bg-[var(--unh-light-gray)] hover:shadow-xl transition flex items-center justify-center text-center min-h-[88px]"
+                    style={{ wordBreak: 'break-word', whiteSpace: 'pre-wrap', lineHeight: '1.4' }}
+                  >
+                    {q}
+                  </button>
+                ))}
+              </div>
+            </section>
           </div>
-        </section>
-      )}
-
-      {/* Chat area */}
-      <div className="flex-1 flex flex-col items-center overflow-hidden">
-        <div className="w-2/3 flex flex-col h-full">
-          <div
-            className="flex-1 overflow-y-auto overflow-x-hidden px-4 py-2 scrollbar-hide"
-            style={{ wordBreak: "break-word" }}
-          >
-            {messages.map((msg, i) => {
+        ) : (
+          <div className="w-2/3 flex flex-col h-full">
+            {/* Main scrollable chat/questions area */}
+            <div
+              className="flex-1 overflow-y-auto overflow-x-hidden px-4 py-2"
+              style={{ wordBreak: "break-word" }}
+            >
+              {messages.map((msg, i) => {
               const isRoleChange =
                 i > 0 && messages[i - 1].role !== msg.role;
               if (msg.role === "user") {
@@ -400,85 +404,89 @@ export default function Home() {
                   </div>
                 );
               }
-            })}
-            <div ref={chatEndRef} />
+              })}
+              <div ref={chatEndRef} />
+            </div>
           </div>
+        )}
+      </div>
 
-          {/* Input box */}
-          <form onSubmit={sendMessage} className="flex gap-2 bg-white py-2 px-4">
+      {/* Input box and bottom text always visible at bottom, fixed height */}
+      <div className="w-full flex flex-col flex-none" style={{ background: 'white', zIndex: 10 }}>
+        <div className="w-full px-4">
+          <form onSubmit={sendMessage} className="mx-auto w-2/3 flex gap-2 py-2">
             <div className="flex-1 flex items-center">
               <div className="relative w-full flex items-center">
-                <button
-                  type="button"
-                  onClick={async () => {
-                    setInput("");
-                    setMessages([]);
-                    try {
-                      await fetch("/reset", {
-                        method: "POST",
-                        headers: {
-                          "Content-Type": "application/json",
-                          "X-Session-Id": sessionId,
-                        },
-                      });
-                    } catch (err) {
-                      console.log("Reset signal failed:", err);
-                    }
-                  }}
-                  className="absolute left-3 top-1/2 -translate-y-1/2 rounded-full p-2 flex items-center justify-center hover:bg-gray-100 transition-colors"
-                  aria-label="Clear input"
+              <button
+                type="button"
+                onClick={async () => {
+                  setInput("");
+                  setMessages([]);
+                  try {
+                    await fetch("/reset", {
+                      method: "POST",
+                      headers: {
+                        "Content-Type": "application/json",
+                        "X-Session-Id": sessionId,
+                      },
+                    });
+                  } catch (err) {
+                    console.log("Reset signal failed:", err);
+                  }
+                }}
+                className="absolute left-3 top-1/2 -translate-y-1/2 rounded-full p-2 flex items-center justify-center hover:bg-gray-100 transition-colors"
+                aria-label="Clear input"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  strokeWidth={2}
+                  stroke="currentColor"
+                  className="w-5 h-5 text-gray-600 hover:text-gray-800"
                 >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    strokeWidth={2}
-                    stroke="currentColor"
-                    className="w-5 h-5 text-gray-600 hover:text-gray-800"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m-4.991 4.99a8.25 8.25 0 01-1.697 1.697"
-                    />
-                  </svg>
-                </button>
-                <input
-                  className="w-full rounded-full border-2 border-gray-400 text-black pl-14 pr-14 py-6 text-lg md:text-xl placeholder:text-gray-400 bg-transparent box-border focus:outline-none"
-                  type="text"
-                  placeholder="Ask questions about programs, courses, and policies"
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                />
-                <button
-                  type="submit"
-                  className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full bg-[var(--unh-blue)] p-3 flex items-center justify-center shadow hover:bg-[var(--unh-accent-blue)] transition-colors"
-                  aria-label="Send"
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m-4.991 4.99a8.25 8.25 0 01-1.697 1.697"
+                  />
+                </svg>
+              </button>
+              <input
+                className="w-full rounded-full border-2 border-gray-400 text-black pl-14 pr-24 py-6 text-lg md:text-xl placeholder:text-gray-400 bg-transparent box-border focus:outline-none"
+                type="text"
+                placeholder="Ask questions about programs, courses, and policies"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+              />
+              <button
+                type="submit"
+                className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full bg-[var(--unh-blue)] p-3 flex items-center justify-center shadow hover:bg-[var(--unh-accent-blue)] transition-colors"
+                aria-label="Send"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  strokeWidth={2}
+                  stroke="white"
+                  className="w-6 h-6"
                 >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    strokeWidth={2}
-                    stroke="white"
-                    className="w-6 h-6"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M5 12h14M12 5l7 7-7 7"
-                    />
-                  </svg>
-                </button>
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M5 12h14M12 5l7 7-7 7"
+                  />
+                </svg>
+              </button>
               </div>
             </div>
           </form>
-
-          <div className="w-full px-4 pb-2 text-center text-sm text-gray-500">
-            <p className="text-lg">
-              Not answering your question? Contact us at grad.school@unh.edu.
-            </p>
-          </div>
+        </div>
+        <div className="w-full px-4 pb-4 text-center text-sm text-gray-500">
+          <p className="mx-auto w-2/3 text-lg">
+            Not answering your question? Contact us at grad.school@unh.edu.
+          </p>
         </div>
       </div>
     </main>
