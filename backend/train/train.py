@@ -12,6 +12,10 @@ from transformers import (
 )
 from datasets import Dataset
 from sklearn.model_selection import train_test_split
+import random
+import numpy as np
+import shutil
+import argparse
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
@@ -125,7 +129,19 @@ def preprocess_function(examples, tokenizer, max_input_length=512, max_target_le
     model_inputs["labels"] = labels["input_ids"]
     return model_inputs
 
+def _set_seed(seed: int):
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+
 if __name__ == "__main__":
+    # Seed training run or use default seed
+    parser = argparse.ArgumentParser(description="Train T5 model with custom seed.")
+    parser.add_argument('--seed', type=int, default=42, help='Random seed (default: 42)')
+    args = parser.parse_args()
+    _set_seed(args.seed)
     # Check GPU availability for training
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Training device: {device}")
@@ -147,7 +163,7 @@ if __name__ == "__main__":
     train_examples, val_examples = train_test_split(
         training_examples, 
         test_size=0.2, 
-        random_state=42
+        random_state=args.seed
     )
     
     print(f"Training examples: {len(train_examples)}")
@@ -184,6 +200,10 @@ if __name__ == "__main__":
     )
     # Training arguments - optimized for GPU training
     output_dir = ROOT / "train" / "models" / "flan-t5-small-finetuned"
+    # Ensure output directory is empty
+    if output_dir.exists():
+        print(f"Deleting previous model directory: {output_dir}")
+        shutil.rmtree(output_dir)
     # Use GPU-optimized settings if available
     if torch.cuda.is_available():
         train_batch_size = 16     # Larger batch for GPU
@@ -222,7 +242,7 @@ if __name__ == "__main__":
         dataloader_num_workers=dataloader_num_workers,
         remove_unused_columns=False,
         report_to=None,
-        seed=42,
+        seed=args.seed
     )
     # Create trainer
     trainer = Trainer(
