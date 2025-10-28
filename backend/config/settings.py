@@ -66,3 +66,10 @@ def get_config() -> Dict[str, Any]:
 
 def get_policy_terms() -> Tuple[str, ...]:
     return POLICY_TERMS
+
+
+import os
+
+# Embedding model for retrieval (NOT the answer LLM)
+# Default stays MiniLM; can override via env var.
+EMBED_MODEL_NAME = os.getenv("EMBED_MODEL_NAME", "BAAI/bge-small-en-v1.5")

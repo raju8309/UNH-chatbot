@@ -72,13 +72,21 @@ def search_chunks(
     
     # get top candidates
     cand_idxs = np.argsort(-sims)[:topn * 2].tolist()
-    
+
     q_lower = (query or "").lower()
     allow_program = bool(alias_url)
     looks_policy = any(term in q_lower for term in policy_terms) or has_policy_terms(q_lower)
     looks_admissions = (intent_key == "admissions") or any(tok in q_lower for tok in [
         "admission", "admissions", "apply", "gre", "gmat", "test score", "test scores", "toefl", "ielts"
     ])
+
+    # Helper to restrict which URLs can be included based on matched program alias
+    def _keep_source(url: str, alias_url: Optional[str], tier: int) -> bool:
+        if alias_url:
+            # allow only same-program family or general tiers (1/2)
+            return tier in (1, 2) or same_program_family(url, alias_url)
+        # if no alias, keep as your normal logic
+        return True
 
     # extract query terms
     query_terms = set(re.findall(r'\b\w+\b', q_lower))
@@ -92,6 +100,12 @@ def search_chunks(
         meta_i = chunk_meta[i] if i < len(chunk_meta) else {}
         tier = meta_i.get("tier", 2)
 
+        src_i = chunk_sources[i] if i < len(chunk_sources) else {}
+        url_i = (src_i.get("url") or "")
+        # Restrict which URLs can be included based on matched program alias
+        if not _keep_source(url_i, alias_url, tier):
+            continue
+
         # course queries → allow Tier 3 (preferred), skip only Tier 4 (program pages)
         if course_norm and tier == 4:
             continue
@@ -102,7 +116,6 @@ def search_chunks(
         if course_norm and cfg.get("course_filters", {}).get("strict_subject_on_code", True):
             try:
                 subj = course_norm.split()[0].upper()
-                src_i = chunk_sources[i] if i < len(chunk_sources) else {}
                 t_i = (src_i.get("title") or "")
                 u_i = (src_i.get("url") or "")
 
@@ -121,7 +134,6 @@ def search_chunks(
                 if not has_policy_terms(chunk_text_lower):
                     continue
             if tier == 4:
-                src_i = chunk_sources[i] if i < len(chunk_sources) else {}
                 url_i = (src_i.get("url") or "")
                 if alias_url:
                     if not same_program_family(url_i, alias_url):
@@ -137,23 +149,21 @@ def search_chunks(
         if term_matches == 0 and sims[i] < 0.1:
             continue
         if course_norm and tier == 2:
-            src_i = chunk_sources[i] if i < len(chunk_sources) else {}
             title_i = (src_i.get("title") or "")
             url_i = (src_i.get("url") or "")
             if not (url_contains_course(url_i, course_norm) or title_starts_with_course(title_i, course_norm)):
                 continue
-                
+
         # tier filtering
         if tier in (3, 4) and not allow_program:
             continue
         if tier == 4 and allow_program:
-            src_i = chunk_sources[i] if i < len(chunk_sources) else {}
             if alias_url and same_program_family(src_i.get("url", ""), alias_url):
                 pass
             else:
                 if not _tier4_is_relevant_embed(query, i):
                     continue
-        
+
         filtered.append(i)
 
     # fallback if no results

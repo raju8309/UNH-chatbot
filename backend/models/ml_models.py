@@ -1,5 +1,11 @@
 from pathlib import Path
 from typing import Any
+import os
+
+try:
+    from config.settings import EMBED_MODEL_NAME as _CFG_EMBED_NAME
+except Exception:
+    _CFG_EMBED_NAME = os.getenv("EMBED_MODEL_NAME", "sentence-transformers/all-MiniLM-L6-v2")
 
 from sentence_transformers import SentenceTransformer
 from transformers import pipeline
@@ -7,13 +13,16 @@ from transformers import pipeline
 # global model instances
 embed_model: SentenceTransformer = None
 qa_pipeline: Any = None
+_loaded_embed_model_name: str = None
 
 def initialize_models(fine_tuned : bool = True) -> None:
     global embed_model, qa_pipeline
     
-    # initialize embedding model
-    embed_model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
-    print("Embedding model loaded")
+    # choose embedding model name from settings or ENV fallback
+    model_name = _CFG_EMBED_NAME or os.getenv("EMBED_MODEL_NAME", "sentence-transformers/all-MiniLM-L6-v2")
+    embed_model = SentenceTransformer(model_name)
+    globals()["_loaded_embed_model_name"] = model_name
+    print(f"Embedding model loaded: {model_name}")
     
     # load trained model if available, otherwise use default
     trained_path = Path(__file__).parent.parent / "train" / "models" / "flan-t5-small-finetuned"
@@ -33,8 +42,17 @@ def initialize_models(fine_tuned : bool = True) -> None:
     print("QA pipeline loaded")
 
 def get_embed_model() -> SentenceTransformer:
+    """
+    Returns the cached embedding model. If initialize_models() wasn't called yet,
+    initialize on the fly using the configured name.
+    """
+    global embed_model, _loaded_embed_model_name
     if embed_model is None:
-        raise RuntimeError("Embedding model not initialized. Call initialize_models() first.")
+        # lazy init fallback (keeps behavior robust in tests/scripts)
+        model_name = _CFG_EMBED_NAME or os.getenv("EMBED_MODEL_NAME", "sentence-transformers/all-MiniLM-L6-v2")
+        embed_model = SentenceTransformer(model_name)
+        _loaded_embed_model_name = model_name
+        print(f"[lazy-init] Embedding model loaded: {model_name}")
     return embed_model
 
 def get_qa_pipeline() -> Any:
