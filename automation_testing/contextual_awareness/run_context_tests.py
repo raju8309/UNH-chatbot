@@ -27,10 +27,11 @@ sys.path.insert(0, str(ROOT / "backend"))
 from config.settings import load_retrieval_config
 from models.ml_models import initialize_models
 from services.chunk_service import load_initial_data
-from services.query_pipeline import process_question_for_retrieval
+from services.session_service import clear_all_sessions
+from routers.chat import answer_question
+from models.api_models import ChatRequest
 
-
-def main():
+async def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--score", action="store_true",
                     help="Also run evaluator.py to create report.json (optional).")
@@ -67,16 +68,15 @@ def main():
 
             rec = json.loads(line)
             qid = rec.get("id")
-            query = rec.get("query", "")
+            q   = rec.get("query", "")
 
-            result = process_question_for_retrieval(query)
-            ans = result.get("answer", "")
-            retrieved_ids = result.get("retrieval_path", [])
+            response = await answer_question(ChatRequest(message=q))
+            clear_all_sessions()
 
             fout.write(json.dumps({
                 "id": qid,
-                "model_answer": ans,
-                "retrieved_ids": retrieved_ids
+                "model_answer": response.answer,
+                "retrieved_ids": response.retrieval_path
             }, ensure_ascii=False) + "\n")
             count += 1
 
