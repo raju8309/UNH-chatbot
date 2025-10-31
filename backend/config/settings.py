@@ -58,6 +58,27 @@ def load_retrieval_config() -> None:
             CFG["search"]["topn_with_alias"] = CFG["search"].get("topn_with_alias", 80)
         CFG["k"] = int(CFG.get("k", 5))
 
+    # ---- Strict program aliasing & thresholds (defaults; can be overridden in YAML) ----
+    if "STRICT_PROGRAM_ALIAS" not in CFG:
+        CFG["STRICT_PROGRAM_ALIAS"] = True  # only alias on truly program-like queries
+    if "STRICT_PROGRAM_SOURCES" not in CFG:
+        CFG["STRICT_PROGRAM_SOURCES"] = True  # block Tier-4 unless a valid alias is found
+    if "ALIAS_MIN_COS" not in CFG:
+        CFG["ALIAS_MIN_COS"] = 0.72
+    if "ALIAS_MIN_COS_WITH_OVERLAP" not in CFG:
+        CFG["ALIAS_MIN_COS_WITH_OVERLAP"] = 0.66
+    if "ALIAS_MIN_OVERLAP" not in CFG:
+        CFG["ALIAS_MIN_OVERLAP"] = 2
+
+    # ---- Optimized defaults for MiniLM (improved program linking & balanced retrieval) ----
+    CFG["STRICT_PROGRAM_ALIAS"] = True
+    CFG["STRICT_PROGRAM_SOURCES"] = False  # no hard block; rely on ranking adjustments
+    CFG["ALIAS_MIN_COS"] = 0.70
+    CFG["ALIAS_MIN_COS_WITH_OVERLAP"] = 0.63
+    CFG["ALIAS_MIN_OVERLAP"] = 2
+    CFG["tier4_gate"] = {"use_embedding": True, "min_title_sim": 0.50, "min_alt_sim": 0.40}
+    CFG["NON_PROGRAM_TIER4_DOWNWEIGHT"] = 0.85
+
     POLICY_TERMS = tuple(CFG.get("policy_terms", []))
     print("Configuration loaded")
 
@@ -72,4 +93,4 @@ import os
 
 # Embedding model for retrieval (NOT the answer LLM)
 # Default stays MiniLM; can override via env var.
-EMBED_MODEL_NAME = os.getenv("EMBED_MODEL_NAME", "BAAI/bge-small-en-v1.5")
+EMBED_MODEL_NAME = os.getenv("EMBED_MODEL_NAME", "sentence-transformers/all-MiniLM-L6-v2")

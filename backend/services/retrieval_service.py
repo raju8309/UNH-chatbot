@@ -50,6 +50,9 @@ def search_chunks(
     course_norm: Optional[str] = None
 ) -> Tuple[List[int], List[Dict[str, Any]]]:
     cfg = get_config()
+    PROGRAM_TIER4_UPWEIGHT = float(cfg.get("PROGRAM_TIER4_UPWEIGHT", 1.20))
+    NON_PROGRAM_TIER4_DOWNWEIGHT = float(cfg.get("NON_PROGRAM_TIER4_DOWNWEIGHT", 0.85))
+    STRICT_PROGRAM_SOURCES = bool(cfg.get("STRICT_PROGRAM_SOURCES", True))
     policy_terms = get_policy_terms()
     embed_model = get_embed_model()
     chunks_embeddings, chunk_texts, chunk_sources, chunk_meta = get_chunks_data()
@@ -80,13 +83,18 @@ def search_chunks(
         "admission", "admissions", "apply", "gre", "gmat", "test score", "test scores", "toefl", "ielts"
     ])
 
-    # Helper to restrict which URLs can be included based on matched program alias
+    # Helper to restrict which URLs can be included based on matched program alias and strict mode
     def _keep_source(url: str, alias_url: Optional[str], tier: int) -> bool:
+        # when strict mode is disabled, keep legacy behavior
+        if not STRICT_PROGRAM_SOURCES:
+            if alias_url:
+                return tier in (1, 2) or same_program_family(url, alias_url)
+            return True  # legacy: allow all tiers when no alias
+        # strict mode: only allow Tier-4 when we have a valid alias, and it matches the same program family
         if alias_url:
-            # allow only same-program family or general tiers (1/2)
             return tier in (1, 2) or same_program_family(url, alias_url)
-        # if no alias, keep as your normal logic
-        return True
+        # no alias → allow only general tiers (1/2); block Tier-3/4 program pages
+        return tier in (1, 2)
 
     # extract query terms
     query_terms = set(re.findall(r'\b\w+\b', q_lower))
@@ -239,6 +247,21 @@ def search_chunks(
                     section_bonus *= 1.6
             if any(s in title_l for s in ("career opportunities", "overview", "sample", "plan of study")):
                 section_bonus *= 0.85
+
+        # Tier-4 weighting: boost when alias present (treat as program intent),
+        # otherwise gently down-weight on non-program queries
+        try:
+            is_tier4 = int(tier) == 4
+            has_alias = bool(alias_url)
+
+            if has_alias and is_tier4:
+                base *= PROGRAM_TIER4_UPWEIGHT
+                if same_program_family((src_i.get("url") or ""), alias_url):
+                    base *= 1.05  # tiny nudge for same-family program page
+            elif (intent_key != "program") and is_tier4:
+                base *= NON_PROGRAM_TIER4_DOWNWEIGHT
+        except Exception:
+            pass
 
         rescored.append((i, base * nudge * same_prog_bonus * course_bonus * admissions_bonus * credits_bonus * section_bonus))
 

@@ -11,7 +11,8 @@ from services.intent_service import (
     alias_conflicts_with_level,
     looks_like_followup,
     explicit_program_mention,
-    auto_intent_from_topic
+    auto_intent_from_topic,
+    extract_degree_intent
 )
 from services.qa_service import cached_answer_with_path
 from utils.course_utils import detect_course_code, COURSE_CODE_RX
@@ -46,12 +47,16 @@ def process_question_for_retrieval(
     if isinstance(incoming_message, list):
         incoming_message = " ".join(incoming_message)
 
+    # degree intent flags (ms/phd/cert) used for alias gating
+    deg_flags = extract_degree_intent(incoming_message)
+
     # update session context
     new_intent = detect_intent(incoming_message, prev_intent=sess.get("intent"))
     new_level = detect_program_level(
         incoming_message,
         fallback=sess.get("program_level") or "unknown"
     )
+    # initial alias attempt on raw message (program_utils has strict gating too)
     match = match_program_alias(incoming_message)
     new_alias = match or sess.get("program_alias")
 
@@ -90,12 +95,16 @@ def process_question_for_retrieval(
 
     try:
         explicit_prog = explicit_program_mention(incoming_message)
+        has_degree_cue = bool(deg_flags.get("ms") or deg_flags.get("phd") or deg_flags.get("cert"))
 
         if is_followup and sess.get("program_alias") and not explicit_prog:
+            # carry session alias for true follow-ups unless the user explicitly shifts programs
             new_alias = sess.get("program_alias")
-        elif match:
+        elif match and (explicit_prog or has_degree_cue):
+            # only adopt a new alias when the user explicitly names a program or has degree intent
             new_alias = match
         else:
+            # otherwise only keep alias if user explicitly named it; drop accidental aliasing
             new_alias = sess.get("program_alias") if explicit_prog else None
     except Exception:
         pass

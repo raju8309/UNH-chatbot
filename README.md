@@ -12,6 +12,7 @@ A chatbot integrated with UNH's graduate catalog to help current and prospective
 - Test dashboard for viewing and comparing automated test results.  
 - **Instant loading** thanks to caching of all text chunks from the entire sitemap.
 - **Contextual awareness** - maintains conversation context for follow-up questions.
+- **Container monitoring and auto-restart** - alerts team when container crashes and automatically restarts.
 
 ## Requirements
 
@@ -19,6 +20,7 @@ A chatbot integrated with UNH's graduate catalog to help current and prospective
 - Pip dependencies listed in `requirements.txt`  
 - Node.js & NPM  
 - Tailwind CSS
+- Docker (for containerized deployment)
 
 ## Design
 
@@ -164,14 +166,16 @@ docker build -t goopy-app .
 docker run -p 8003:8003 --name goopy-app -e PUBLIC_URL=http://localhost:8003/ goopy-app
 ```
 
-### Deploy
+### Deploy on Server
 
 ```bash
 git clone https://github.com/UNHM-TEAM-PROJECT/Fall2025-Team-Goopy.git
 cd Fall2025-Team-Goopy
 docker system prune -a --volumes
 docker build -t goopy-app .
-docker run -d -p 8003:8003 \
+docker run -d \
+  --name goopy-app \
+  -p 8003:8003 \
   -v $(pwd)/backend/train/models:/app/backend/train/models \
   goopy-app
 ```
@@ -182,6 +186,267 @@ cd frontend
 npm run dev
 # Connect to localhost:3000 in your browser
 ```
+
+## Container Monitoring System
+
+The repository includes an automated monitoring system that watches the Docker container and sends email alerts when crashes occur.
+
+### Features
+
+- **Crash Detection**: Monitors container status every 60 seconds
+- **Email Alerts**: Sends detailed crash analysis emails when container goes down and recovery emails when it comes back up
+- **Crash Analysis**: Automatically analyzes exit codes, error patterns, and logs to determine crash cause
+- **Downtime Tracking**: Tracks and reports total downtime duration
+- **Auto-Restart**: Automatically attempts to restart the container every 5 minutes if down
+- **Detailed Reports**: Generates crash reports with full container logs and error analysis
+
+### Initial Setup
+
+1. **Run the setup script** (only needed once):
+
+```bash
+cd Fall2025-Team-Goopy
+chmod +x setup-monitor.sh
+./setup-monitor.sh
+```
+
+This will:
+- Create the monitoring infrastructure in `~/container-monitor/`
+- Set up systemd services for 24/7 monitoring
+- Create helper scripts for managing the system
+- Enable user lingering so monitoring continues after logout
+
+2. **Configure email address**:
+
+```bash
+nano ~/container-monitor/monitor.sh
+# Change this line:
+ALERT_EMAIL="your-team@example.com"
+# To your actual email
+```
+
+3. **Restart the monitoring service**:
+
+```bash
+systemctl --user restart container-monitor
+```
+
+4. **Set up auto-restart timer**:
+
+```bash
+# Create the service file
+cat > ~/.config/systemd/user/container-auto-restart.service <<'EOF'
+[Unit]
+Description=Auto-restart goopy-app container if down
+
+[Service]
+Type=oneshot
+ExecStart=/home/users/YOUR_USERNAME/container-monitor/auto-restart.sh
+EOF
+
+# Create the timer file (runs every 5 minutes)
+cat > ~/.config/systemd/user/container-auto-restart.timer <<'EOF'
+[Unit]
+Description=Run container auto-restart every 5 minutes
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=5min
+AccuracySec=1s
+
+[Install]
+WantedBy=timers.target
+EOF
+
+# Enable and start the timer
+systemctl --user daemon-reload
+systemctl --user enable container-auto-restart.timer
+systemctl --user start container-auto-restart.timer
+```
+
+5. **Test the setup**:
+
+```bash
+# Test email alerts
+~/container-monitor/test-email.sh
+
+# Check monitoring status
+systemctl --user status container-monitor
+
+# Check auto-restart timer
+systemctl --user list-timers
+```
+
+### Monitoring Management
+
+**Check Status:**
+```bash
+# Check if monitoring is running
+systemctl --user status container-monitor
+
+# Check container status
+~/container-monitor/check-status.sh
+
+# View live dashboard
+~/container-monitor/dashboard.sh
+```
+
+**View Reports:**
+```bash
+# View all crash reports and downtime logs
+~/container-monitor/view-reports.sh
+
+# Generate summary report
+~/container-monitor/summary-report.sh
+
+# Analyze most recent crash
+~/container-monitor/analyze-crash.sh
+```
+
+**Start/Stop Monitoring:**
+```bash
+# Stop monitoring
+systemctl --user stop container-monitor
+
+# Start monitoring
+systemctl --user start container-monitor
+
+# Restart monitoring
+systemctl --user restart container-monitor
+
+# Disable monitoring (won't start on boot)
+systemctl --user disable container-monitor
+
+# Enable monitoring (starts on boot)
+systemctl --user enable container-monitor
+```
+
+**Auto-Restart Management:**
+```bash
+# Check auto-restart status
+systemctl --user status container-auto-restart.timer
+systemctl --user list-timers
+
+# Stop auto-restart
+systemctl --user stop container-auto-restart.timer
+
+# Start auto-restart
+systemctl --user start container-auto-restart.timer
+
+# Disable auto-restart
+systemctl --user disable container-auto-restart.timer
+```
+
+**View Logs:**
+```bash
+# View monitoring logs
+tail -f ~/container-monitor-logs/monitor.log
+
+# View alerts
+tail -f ~/container-monitor-logs/alerts.log
+
+# View auto-restart logs
+tail -f ~/container-monitor-logs/auto-restart.log
+
+# View systemd logs
+journalctl --user -u container-monitor -f
+```
+
+### How It Works
+
+**When Container Crashes:**
+
+1. **Detection** (within 60 seconds): Monitor detects container is down
+2. **Analysis**: Automatically analyzes exit code, error patterns, and logs
+3. **Alert Email**: Sends detailed crash report including:
+   - Crash reason (OOM, segfault, application error, etc.)
+   - Exit code interpretation
+   - Last 20 lines of container logs
+   - Detected error patterns
+4. **Auto-Restart** (within 5 minutes): Timer attempts to restart container
+5. **Recovery Email**: Sends confirmation when container is back up with total downtime
+
+**Email Alert Example:**
+
+```
+Subject: Container DOWN: goopy-app
+
+ALERT: Container goopy-app has stopped running
+
+Time of Failure: 2025-10-22T03:15:45-04:00
+Server: whitemount
+
+CRASH ANALYSIS:
+Reason: Container killed by SIGKILL (exit code 137) - Out of memory
+Exit Code: 137
+
+Error Indicators Detected:
+• OUT OF MEMORY detected in logs
+• PANIC/FATAL error detected in logs
+
+Last 20 Lines of Container Logs:
+[Container logs here...]
+
+Monitoring will continue and send another alert when container recovers.
+```
+
+### Updating Container Without False Alerts
+
+When performing planned updates, temporarily stop monitoring to avoid alert emails:
+
+```bash
+# Stop monitoring and auto-restart
+systemctl --user stop container-monitor
+systemctl --user stop container-auto-restart.timer
+
+# Perform your updates
+docker stop goopy-app
+docker rm goopy-app
+git pull
+docker build -t goopy-app .
+docker run -d --name goopy-app -p 8003:8003 goopy-app
+
+# Verify container is running
+docker ps | grep goopy-app
+
+# Restart monitoring
+systemctl --user start container-monitor
+systemctl --user start container-auto-restart.timer
+```
+
+### Monitoring Persistence
+
+The monitoring system:
+- Runs 24/7 in the background
+- Survives server reboots
+- Continues after you log out (via lingering)
+- Automatically restarts if monitoring process crashes
+- Survives container updates (as long as container name stays `goopy-app`)
+
+### Log Locations
+
+All monitoring data is stored in `~/container-monitor-logs/`:
+- `monitor.log` - Main monitoring activity log
+- `alerts.log` - All alerts sent
+- `downtime.log` - Downtime events with durations
+- `crash-reports.log` - Detailed crash analyses with full logs
+- `auto-restart.log` - Auto-restart attempt history
+- `status.json` - Current container status
+
+### Updating Monitoring Scripts
+
+When you update `monitor.sh` in the repository:
+
+```bash
+# Pull latest changes
+cd Fall2025-Team-Goopy
+git pull
+
+# Update deployed monitoring script
+~/container-monitor/update-from-repo.sh
+```
+
+This automatically stops monitoring, copies the updated script, and restarts the service.
 
 ## Configuration
 
@@ -232,6 +497,20 @@ The chatbot's retrieval behavior can be tuned via `backend/config/retrieval.yaml
   - `popular_questions.json`: Dynamically generated question suggestions
 - **gen_questions.py**: Script to update popular questions from logs and tests
 
+### Monitoring Structure
+
+- **monitor.sh**: Main monitoring script with crash analysis
+- **setup-monitor.sh**: One-time setup script
+- **Helper scripts** (auto-generated):
+  - `check-status.sh`: Quick container status check
+  - `view-reports.sh`: View all crash reports
+  - `summary-report.sh`: Generate summary statistics
+  - `analyze-crash.sh`: Analyze most recent crash
+  - `test-email.sh`: Test email configuration
+  - `dashboard.sh`: Live monitoring dashboard
+  - `auto-restart.sh`: Container restart script
+  - `update-from-repo.sh`: Update monitoring from repository
+
 ## Data Pipeline
 
 1. **Scraping** (`scraper/scrape_catalog.py`):
@@ -265,3 +544,86 @@ The chatbot's retrieval behavior can be tuned via `backend/config/retrieval.yaml
 - Logs feed into popular questions generation
 - Test results stored in timestamped directories under `automation_testing/reports/`
 - Each test run includes: predictions, gold standard copy, and detailed metrics report
+- Container monitoring logs stored in `~/container-monitor-logs/` with crash analyses and downtime tracking
+
+## Troubleshooting
+
+### Container Issues
+
+**Container won't start:**
+```bash
+# Check Docker logs
+docker logs goopy-app
+
+# Check if port is in use
+netstat -tulpn | grep 8003
+
+# Check disk space
+df -h
+```
+
+**Monitoring not detecting container:**
+```bash
+# Verify container name
+docker ps -a | grep goopy
+
+# Check monitoring logs
+tail -50 ~/container-monitor-logs/monitor.log
+
+# Test manually
+~/container-monitor/check-status.sh
+```
+
+### Email Issues
+
+**Not receiving alerts:**
+```bash
+# Test email configuration
+~/container-monitor/test-email.sh
+
+# Check for pending alerts
+cat ~/container-monitor-logs/pending-alerts.log
+
+# Verify email in config
+grep ALERT_EMAIL ~/container-monitor/monitor.sh
+```
+
+### Service Issues
+
+**Monitoring not running:**
+```bash
+# Check service status
+systemctl --user status container-monitor
+
+# Check if lingering is enabled
+loginctl show-user $USER | grep Linger
+
+# Enable lingering if needed
+loginctl enable-linger $USER
+
+# Restart service
+systemctl --user restart container-monitor
+```
+
+**Auto-restart not working:**
+```bash
+# Check timer status
+systemctl --user list-timers | grep auto-restart
+
+# Check timer logs
+journalctl --user -u container-auto-restart.service
+
+# Manually trigger restart
+systemctl --user start container-auto-restart.service
+```
+
+## Contributing
+
+When contributing changes to the monitoring system:
+
+1. Edit `monitor.sh` in the repository
+2. Test changes locally
+3. Commit and push to repository
+4. On the server, run: `~/container-monitor/update-from-repo.sh`
+
+The monitoring system is designed to be robust and self-healing, automatically restarting if it encounters issues and persisting through server reboots and user logouts.
