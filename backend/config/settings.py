@@ -72,4 +72,4 @@ import os
 
 # Embedding model for retrieval (NOT the answer LLM)
 # Default stays MiniLM; can override via env var.
-EMBED_MODEL_NAME = os.getenv("EMBED_MODEL_NAME", "BAAI/bge-small-en-v1.5")
+EMBED_MODEL_NAME = os.getenv("EMBED_MODEL_NAME", "sentence-transformers/all-MiniLM-L6-v2")
