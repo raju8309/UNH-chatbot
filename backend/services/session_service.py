@@ -5,7 +5,6 @@ from typing import Any, Dict, Optional
 SESSIONS: Dict[str, Dict[str, Any]] = {}
 
 def now_iso() -> str:
-    """Get current UTC timestamp in ISO format."""
     return datetime.utcnow().isoformat(timespec="seconds") + "Z"
 
 def get_session(session_id: str) -> Dict[str, Any]:
@@ -28,11 +27,7 @@ def update_session(session_id: str, **fields: Any) -> None:
     sess.update(fields)
     sess["updated_at"] = now_iso()
 
-# -----------------------
-# Session history helper
-# -----------------------
 def push_history(session_id: str, entry: Dict[str, Any], keep_last: int = 5) -> None:
-    """Append a history entry to the session, capped at 5 most recent turns."""
     sess = get_session(session_id)
     hist = sess.get("history")
     if not isinstance(hist, list):

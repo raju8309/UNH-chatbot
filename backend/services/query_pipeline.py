@@ -1,6 +1,3 @@
-"""
-Shared pipeline for preprocessing and retrieval logic used by both chat API and training script.
-"""
 import re
 from services.intent_service import (
     LEVEL_HINT_TOKEN,
@@ -29,11 +26,7 @@ def process_question_for_retrieval(
     prev_last_answer=None,
     prev_last_retrieval_path=None
 ):
-    """
-    Shared logic for preprocessing and retrieval for a question.
-    Returns: dict with answer, sources, retrieval_path, session_updates, context, intent, program_level, program_alias, course_code
-    """
-    # Session or a fake session
+    # session or a fake session
     sess = session or {}
     sess.setdefault("intent", prev_intent)
     sess.setdefault("program_level", prev_program_level)
@@ -134,7 +127,7 @@ def process_question_for_retrieval(
     if new_alias and isinstance(new_alias, dict):
         alias_url = new_alias.get("url")
 
-    # Not using scoped_message, intent_key, or course_norm as they all tank the test answers/scores
+    # not using scoped_message, intent_key, or course_norm as they all tank the test answers/scores
     answer, sources, retrieval_path, context = cached_answer_with_path(
         user_query, alias_url=alias_url, intent_key=None, course_norm=None
     )
