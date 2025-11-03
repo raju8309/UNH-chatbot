@@ -107,7 +107,18 @@ def load_json_file(path: str) -> None:
             # Prepend contextual header to improve retrieval
             enable_headers = cfg.get("chunking", {}).get("enable_contextual_headers", True)
             if enable_headers:
-                contextual_chunk = f"Section: {title}\n\n{text}"
+                # Title simplification: remove redundant repetitions while keeping context
+                # e.g., "A - A - A" -> "A"
+                # e.g., "A - B - C" -> "A - B - C" (keep full path)
+                # e.g., "A - B - B" -> "A - B"
+                parts = [p.strip() for p in title.split(" - ")]
+                # Remove consecutive duplicates
+                simplified_parts = []
+                for part in parts:
+                    if not simplified_parts or simplified_parts[-1] != part:
+                        simplified_parts.append(part)
+                section_name = " - ".join(simplified_parts)
+                contextual_chunk = f"{section_name}\n\n{text}"
             else:
                 contextual_chunk = text
             new_texts.append(contextual_chunk)
