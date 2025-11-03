@@ -169,6 +169,8 @@ def llm_rewrite(query: str) -> str:
         "You rewrite user questions to be precise and UNH Graduate Catalog-specific.\n"
         "Rules:\n"
         "- Clarify vague nouns (e.g., 'failing' -> 'failing grade').\n"
+        "- Do NOT change the meaning of the question.\n"
+        "- Do NOT confuse 'graduation' (completing a degree) with 'graduate admission' (applying to a program).\n"
         "- Do NOT invent facts, numbers, or policies.\n"
         "- Preserve all course codes and entities.\n"
         "- Keep it to a single concise question.\n\n"
@@ -178,13 +180,15 @@ def llm_rewrite(query: str) -> str:
         "User: thesis vs non thesis\n"
         "Rewritten: What is the difference between thesis and non-thesis options in UNH graduate programs?\n\n"
         "User: capstone?\n"
-        "Rewritten: What is the capstone requirement for UNH master’s programs?\n\n"
+        "Rewritten: What is the capstone requirement for UNH master's programs?\n\n"
         "User: audit option?\n"
         "Rewritten: Are UNH graduate students allowed to audit courses?\n\n"
         "User: comps required?\n"
         "Rewritten: Are comprehensive exams required for UNH graduate degrees?\n\n"
         "User: time limit masters\n"
-        "Rewritten: What is the time limit to complete a UNH master’s degree?\n\n"
+        "Rewritten: What is the time limit to complete a UNH master's degree?\n\n"
+        "User: How do I apply for graduation?\n"
+        "Rewritten: How do I apply for graduation from UNH?\n\n"
         f"User question: {query}\n"
         "Rewritten question:"
     )
@@ -205,6 +209,20 @@ def llm_rewrite(query: str) -> str:
         KEY_TOKENS = [t for t in KEY_TOKENS if t not in STOP]
         if KEY_TOKENS and not any(t in (rewritten or "").lower() for t in KEY_TOKENS):
             return query
+
+        # Specific semantic guards to catch common LLM mistakes
+        query_lower = query.lower()
+        rewritten_lower = rewritten.lower()
+        
+        # Don't let "graduation" turn into "graduate admission/degrees"
+        if "graduation" in query_lower and "graduation" not in rewritten_lower:
+            if any(term in rewritten_lower for term in ["graduate degree", "graduate program", "admission"]):
+                return query
+        
+        # Don't let "transfer" turn into something about "credit transfer policy" when asking about transferring programs
+        if "transfer" in query_lower and "credit" not in query_lower:
+            if "transfer credit" in rewritten_lower and "program" in query_lower:
+                return query
 
         # Semantic sanity check: reject noisy/irrelevant rewrites
         if not _semantic_sanity(query, rewritten):
