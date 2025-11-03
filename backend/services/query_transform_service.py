@@ -61,7 +61,35 @@ def apply_domain_rules(text: str) -> str:
     out = text
     for key, val in DOMAIN_RULES.items():
         pattern = re.compile(rf"\b{re.escape(key)}\b", flags=re.IGNORECASE)
-        out = pattern.sub(val, out)
+        # Skip replacement if:
+        # 1. The expanded form is already present (e.g., "academic probation" already there)
+        # 2. The key word appears adjacent to words from the expansion (e.g., "GPA requirement" + rule "gpa"->"minimum GPA requirement")
+        val_lower = val.lower()
+        out_lower = out.lower()
+        
+        # Check if expansion already exists
+        if val_lower in out_lower:
+            continue
+            
+        # Check if key appears in a context that overlaps with the expansion
+        # e.g., "GPA requirement" shouldn't become "minimum GPA requirement requirement"
+        val_words = set(val_lower.split())
+        matches = pattern.finditer(out_lower)
+        skip = False
+        for match in matches:
+            start, end = match.span()
+            # Check words immediately before and after the match
+            context_start = max(0, start - 30)
+            context_end = min(len(out_lower), end + 30)
+            context = out_lower[context_start:context_end]
+            context_words = set(context.split())
+            # If other words from the expansion are already nearby, skip
+            if len(val_words.intersection(context_words) - {key.lower()}) > 0:
+                skip = True
+                break
+        
+        if not skip:
+            out = pattern.sub(val, out)
     return out
 
 def _extract_entities(text: str):
