@@ -1,0 +1,362 @@
+{
+  "what is failing": {
+    "original": "what is failing",
+    "transformed": "What is a failing grade in the UNH Graduate Catalog?",
+    "timestamp": "2025-11-01T22:24:26Z"
+  },
+  "pass/fail allowed?": {
+    "original": "pass/fail allowed?",
+    "transformed": "What is a pass/fail allowed in UNH graduate degrees?",
+    "timestamp": "2025-11-01T22:24:26Z"
+  },
+  "good standing gpa": {
+    "original": "good standing gpa",
+    "transformed": "What is the minimum GPA requirement for UNH graduate degrees?",
+    "timestamp": "2025-11-01T22:24:26Z"
+  },
+  "probation vs dismissal": {
+    "original": "probation vs dismissal",
+    "transformed": "What is the difference between academic probation and academic dismissal?",
+    "timestamp": "2025-11-01T22:24:27Z"
+  },
+  "incomplete grade rules": {
+    "original": "incomplete grade rules",
+    "transformed": "What is incomplete grade rules for UNH graduate degrees?",
+    "timestamp": "2025-11-01T22:24:27Z"
+  },
+  "repeat course policy": {
+    "original": "repeat course policy",
+    "transformed": "What is a repeat course policy course policy?",
+    "timestamp": "2025-11-01T22:24:27Z"
+  },
+  "minimum credits to be full time": {
+    "original": "minimum credits to be full time",
+    "transformed": "What is the minimum credits to be full time limit for degree completion?",
+    "timestamp": "2025-11-01T22:24:28Z"
+  },
+  "audit option?": {
+    "original": "audit option?",
+    "transformed": "What is the audit option option?",
+    "timestamp": "2025-11-01T22:24:28Z"
+  },
+  "time limit masters": {
+    "original": "time limit masters",
+    "transformed": "What is the time limit to complete a UNH master’s degree?",
+    "timestamp": "2025-11-01T22:24:28Z"
+  },
+  "how long for phd": {
+    "original": "how long for phd",
+    "transformed": "How long for Ph.D. program?",
+    "timestamp": "2025-11-01T22:24:29Z"
+  },
+  "leave of absence grad school": {
+    "original": "leave of absence grad school",
+    "transformed": "What is the leave of absence of absence grad school?",
+    "timestamp": "2025-11-01T22:24:29Z"
+  },
+  "continuous enrollment?": {
+    "original": "continuous enrollment?",
+    "transformed": "What is a continuous enrollment requirement for UNH graduate degrees?",
+    "timestamp": "2025-11-01T22:24:29Z"
+  },
+  "candidacy deadline phd": {
+    "original": "candidacy deadline phd",
+    "transformed": "What is the candidacy deadline for Ph.D. program?",
+    "timestamp": "2025-11-01T22:24:30Z"
+  },
+  "max years after coursework": {
+    "original": "max years after coursework",
+    "transformed": "What is the maximum years after coursework?",
+    "timestamp": "2025-11-01T22:24:30Z"
+  },
+  "transfer from other uni": {
+    "original": "transfer from other uni",
+    "transformed": "What is transfer credit from other UNH graduate degrees?",
+    "timestamp": "2025-11-01T22:24:30Z"
+  },
+  "waiver for core course": {
+    "original": "waiver for core course",
+    "transformed": "What is the waiver for core course?",
+    "timestamp": "2025-11-01T22:24:31Z"
+  },
+  "double counting undergrad grad": {
+    "original": "double counting undergrad grad",
+    "transformed": "What is a double counting undergrad grad?",
+    "timestamp": "2025-11-01T22:24:31Z"
+  },
+  "certificate credits into masters": {
+    "original": "certificate credits into masters",
+    "transformed": "What is a certificate credit into master’s program?",
+    "timestamp": "2025-11-01T22:24:32Z"
+  },
+  "capstone?": {
+    "original": "capstone?",
+    "transformed": "What is the capstone requirement for UNH master’s programs?",
+    "timestamp": "2025-11-01T22:24:32Z"
+  },
+  "thesis vs non thesis": {
+    "original": "thesis vs non thesis",
+    "transformed": "What is the difference between thesis and non-thesis options in UNH graduate degrees?",
+    "timestamp": "2025-11-01T22:24:32Z"
+  },
+  "comps required?": {
+    "original": "comps required?",
+    "transformed": "comprehensive examination required?",
+    "timestamp": "2025-11-01T22:24:33Z"
+  },
+  "residency requirement": {
+    "original": "residency requirement",
+    "transformed": "What is the residency requirement for UNH graduate degrees?",
+    "timestamp": "2025-11-01T22:24:33Z"
+  },
+  "max credits per term": {
+    "original": "max credits per term",
+    "transformed": "What is the maximum credit per term for UNH graduate degrees?",
+    "timestamp": "2025-11-01T22:24:34Z"
+  },
+  "overload permission": {
+    "original": "overload permission",
+    "transformed": "overload permission",
+    "timestamp": "2025-11-01T22:24:34Z"
+  },
+  "add/drop deadline grad": {
+    "original": "add/drop deadline grad",
+    "transformed": "What is the deadline for UNH graduate degrees?",
+    "timestamp": "2025-11-01T22:24:34Z"
+  },
+  "tuition waiver ra/ta": {
+    "original": "tuition waiver ra/ta",
+    "transformed": "What is tuition waiver ra/ta?",
+    "timestamp": "2025-11-01T22:24:35Z"
+  },
+  "late registration fee": {
+    "original": "late registration fee",
+    "transformed": "What is the late registration fee for UNH graduate degrees?",
+    "timestamp": "2025-11-01T22:24:35Z"
+  },
+  "english proficiency reqs grad": {
+    "original": "english proficiency reqs grad",
+    "transformed": "What is the qualification for English proficiency reqs grad?",
+    "timestamp": "2025-11-01T22:24:35Z"
+  },
+  "visa full time credits": {
+    "original": "visa full time credits",
+    "transformed": "What is the full time limit for degree completion credits?",
+    "timestamp": "2025-11-01T22:24:36Z"
+  },
+  "fail grade?": {
+    "original": "fail grade?",
+    "transformed": "What is a failing grade in the UNH Graduate Catalog?",
+    "timestamp": "2025-11-01T22:24:36Z"
+  },
+  "transfr crdts limit": {
+    "original": "transfr crdts limit",
+    "transformed": "What is the limit to complete a UNH master’s degree?",
+    "timestamp": "2025-11-01T22:24:36Z"
+  },
+  "can i take p/f in masters": {
+    "original": "can i take p/f in masters",
+    "transformed": "Can I take P/F in master’s program?",
+    "timestamp": "2025-11-01T22:24:37Z"
+  },
+  "Phd time limit": {
+    "original": "Phd time limit",
+    "transformed": "What is the time limit for degree completion limit?",
+    "timestamp": "2025-11-01T22:24:37Z"
+  },
+  "can i transfer 9 credits from northeastern": {
+    "original": "can i transfer 9 credits from northeastern",
+    "transformed": "Can I transfer credit 9 credits from northeastern?",
+    "timestamp": "2025-11-01T22:07:33Z"
+  },
+  "part time allowed for international": {
+    "original": "part time allowed for international",
+    "transformed": "What is the part time limit for degree completion allowed for international?",
+    "timestamp": "2025-11-01T22:07:36Z"
+  },
+  "can i transfer credits": {
+    "original": "can i transfer credits",
+    "transformed": "Can I transfer credit credits?",
+    "timestamp": "2025-11-01T22:24:31Z"
+  },
+  "part time enrollment": {
+    "original": "part time enrollment",
+    "transformed": "What is the part time limit for degree completion enrollment?",
+    "timestamp": "2025-11-01T22:24:33Z"
+  },
+  "academic probation vs dismissal": {
+    "original": "academic probation vs dismissal",
+    "transformed": "What is the difference between academic academic probation and academic dismissal?",
+    "timestamp": "2025-11-01T22:24:37Z"
+  },
+  "repeat course policy for grad students": {
+    "original": "repeat course policy for grad students",
+    "transformed": "What is a repeat course policy course policy for grad students?",
+    "timestamp": "2025-11-01T22:24:38Z"
+  },
+  "thesis or non-thesis option for masters": {
+    "original": "thesis or non-thesis option for masters",
+    "transformed": "What is the difference between thesis and non-thesis options in UNH graduate degrees?",
+    "timestamp": "2025-11-01T22:24:38Z"
+  },
+  "leave of absence policy for graduate students": {
+    "original": "leave of absence policy for graduate students",
+    "transformed": "What is the leave of absence of absence policy for graduate students?",
+    "timestamp": "2025-11-01T22:24:38Z"
+  },
+  "CR grade option?": {
+    "original": "CR grade option?",
+    "transformed": "What is the CR grade option?",
+    "timestamp": "2025-11-01T22:24:39Z"
+  },
+  "AU grade?": {
+    "original": "AU grade?",
+    "transformed": "What grade is the UNH Graduate Catalog-specific?",
+    "timestamp": "2025-11-01T22:24:39Z"
+  },
+  "guidance committee": {
+    "original": "guidance committee",
+    "transformed": "What is the name of the guidance committee?",
+    "timestamp": "2025-11-01T22:24:39Z"
+  },
+  "full time status": {
+    "original": "full time status",
+    "transformed": "What is the full time limit for degree completion status?",
+    "timestamp": "2025-11-01T22:24:40Z"
+  },
+  "master’s program requirements": {
+    "original": "master’s program requirements",
+    "transformed": "What are the master’s program requirements for UNH master’s degree?",
+    "timestamp": "2025-11-01T22:24:40Z"
+  },
+  "total credits for the Biotechnology: Industrial and Biomedical Sciences (M.S.) program": {
+    "original": "total credits for the Biotechnology: Industrial and Biomedical Sciences (M.S.) program",
+    "transformed": "What is the total credits for the Biotechnology: Industrial and Biomedical Sciences (M.S.) program?",
+    "timestamp": "2025-11-01T22:24:40Z"
+  },
+  "laboratory skills will students develop in the Biotechnology: Industrial and Biomedical Sciences (M.S.) program?": {
+    "original": "laboratory skills will students develop in the Biotechnology: Industrial and Biomedical Sciences (M.S.) program?",
+    "transformed": "What will students develop in the Biotechnology: Industrial and Biomedical Sciences (M.S.) program?",
+    "timestamp": "2025-11-01T22:24:41Z"
+  },
+  "core courses in the Biotechnology: Industrial and Biomedical Sciences (M.S.) program": {
+    "original": "core courses in the Biotechnology: Industrial and Biomedical Sciences (M.S.) program",
+    "transformed": "What is the core courses in the Biotechnology: Industrial and Biomedical Sciences (M.S.) program?",
+    "timestamp": "2025-11-01T22:24:42Z"
+  },
+  "elective options in the Biotechnology: Industrial and Biomedical Sciences (M.S.) program": {
+    "original": "elective options in the Biotechnology: Industrial and Biomedical Sciences (M.S.) program",
+    "transformed": "What are the elective options in the Biotechnology: Industrial and Biomedical Sciences (M.S.) program?",
+    "timestamp": "2025-11-01T22:24:42Z"
+  },
+  "research opportunities in the Biotechnology: Industrial and Biomedical Sciences (M.S.) program": {
+    "original": "research opportunities in the Biotechnology: Industrial and Biomedical Sciences (M.S.) program",
+    "transformed": "What are the research opportunities in the Biotechnology: Industrial and Biomedical Sciences (M.S.) program?",
+    "timestamp": "2025-11-01T22:24:43Z"
+  },
+  "capstone experience in the Biotechnology: Industrial and Biomedical Sciences (M.S.) program": {
+    "original": "capstone experience in the Biotechnology: Industrial and Biomedical Sciences (M.S.) program",
+    "transformed": "What is the experience in the Biotechnology: Industrial and Biomedical Sciences (M.S.) program?",
+    "timestamp": "2025-11-01T22:24:43Z"
+  },
+  "Which campus hosts the Cybersecurity Engineering (M.S.) program": {
+    "original": "Which campus hosts the Cybersecurity Engineering (M.S.) program",
+    "transformed": "What campus hosts the Cybersecurity Engineering (M.S.) program?",
+    "timestamp": "2025-11-01T22:24:44Z"
+  },
+  "What is the duration of the Cybersecurity Engineering (M.S.) program?": {
+    "original": "What is the duration of the Cybersecurity Engineering (M.S.) program?",
+    "transformed": "What is the duration of the Cybersecurity Engineering (M.S.) program?",
+    "timestamp": "2025-11-01T22:24:44Z"
+  },
+  "How many total credits are required for the Cybersecurity Engineering (M.S.) program?": {
+    "original": "How many total credits are required for the Cybersecurity Engineering (M.S.) program?",
+    "transformed": "How many total credits are required for the Cybersecurity Engineering (M.S.) program?",
+    "timestamp": "2025-11-01T22:24:44Z"
+  },
+  "What core courses are included in the Cybersecurity Engineering (M.S.) program?": {
+    "original": "What core courses are included in the Cybersecurity Engineering (M.S.) program?",
+    "transformed": "What core courses are included in the Cybersecurity Engineering (M.S.) program?",
+    "timestamp": "2025-11-01T22:24:45Z"
+  },
+  "What elective options are available in the Cybersecurity Engineering (M.S.) program?": {
+    "original": "What elective options are available in the Cybersecurity Engineering (M.S.) program?",
+    "transformed": "What elective options are available in the Cybersecurity Engineering (M.S.) program?",
+    "timestamp": "2025-11-01T22:24:45Z"
+  },
+  "Are there research opportunities in the Cybersecurity Engineering (M.S.) program?": {
+    "original": "Are there research opportunities in the Cybersecurity Engineering (M.S.) program?",
+    "transformed": "Are there research opportunities in the Cybersecurity Engineering (M.S.) program?",
+    "timestamp": "2025-11-01T22:24:46Z"
+  },
+  "Is there a capstone project or thesis requirement in the Cybersecurity Engineering (M.S.) program?": {
+    "original": "Is there a capstone project or thesis requirement in the Cybersecurity Engineering (M.S.) program?",
+    "transformed": "Is there a capstone requirement project or thesis or non-thesis option requirement in the Cybersecurity Engineering (M.S.) program?",
+    "timestamp": "2025-11-01T22:24:46Z"
+  },
+  "information technology (M.S.) total credits required": {
+    "original": "information technology (M.S.) total credits required",
+    "transformed": "What is the total credits required for information technology (M.S.)?",
+    "timestamp": "2025-11-01T22:24:47Z"
+  },
+  "How many core credits are required in the Information Technology (M.S.) program?": {
+    "original": "How many core credits are required in the Information Technology (M.S.) program?",
+    "transformed": "How many core credits are required in the Information Technology (M.S.) program?",
+    "timestamp": "2025-11-01T22:24:47Z"
+  },
+  "What completion options are listed for the Information Technology (M.S.) program?": {
+    "original": "What completion options are listed for the Information Technology (M.S.) program?",
+    "transformed": "What are the completion options for the Information Technology (M.S.) program?",
+    "timestamp": "2025-11-01T22:24:48Z"
+  },
+  "How is the Master’s Project Option structured in the Information Technology (M.S.) program?": {
+    "original": "How is the Master’s Project Option structured in the Information Technology (M.S.) program?",
+    "transformed": "What is the Master’s Project Option structured in the Information Technology (M.S.) program?",
+    "timestamp": "2025-11-01T22:24:48Z"
+  },
+  "How is the Master’s Thesis Option structured in the Information Technology (M.S.) program?": {
+    "original": "How is the Master’s Thesis Option structured in the Information Technology (M.S.) program?",
+    "transformed": "How is the Master’s thesis or non-thesis option structured in the Information Technology (M.S.) program?",
+    "timestamp": "2025-11-01T22:24:49Z"
+  },
+  "How many thesis credits are required in the information technology (M.S.) Thesis Option?": {
+    "original": "How many thesis credits are required in the information technology (M.S.) Thesis Option?",
+    "transformed": "How many thesis or non-thesis option credits are required in the information technology (M.S.) thesis or non-thesis option Option?",
+    "timestamp": "2025-11-01T22:24:49Z"
+  },
+  "How many credits are allocated for the Master’s Project in the information technology (M.S.) program?": {
+    "original": "How many credits are allocated for the Master’s Project in the information technology (M.S.) program?",
+    "transformed": "How many credits are allocated for the Master’s Project in the Information Technology (M.S.) program?",
+    "timestamp": "2025-11-01T22:24:50Z"
+  },
+  "Does the information technology (M.S.) program require an internship?": {
+    "original": "Does the information technology (M.S.) program require an internship?",
+    "transformed": "Does the information technology (M.S.) program require an internship?",
+    "timestamp": "2025-11-01T22:24:50Z"
+  },
+  "When can students begin the internship in the information technology (M.S.) program?": {
+    "original": "When can students begin the internship in the information technology (M.S.) program?",
+    "transformed": "When can students begin the internship in the information technology (M.S.) program?",
+    "timestamp": "2025-11-01T22:24:51Z"
+  },
+  "Does the Information Technology (M.S.) offer flexibility for part-time students?": {
+    "original": "Does the Information Technology (M.S.) offer flexibility for part-time students?",
+    "transformed": "Does the Information Technology (M.S.) offer flexibility for part-time limit for degree completion students?",
+    "timestamp": "2025-11-01T22:24:51Z"
+  },
+  "What does each credit represent in the Information Technology (M.S.) program?": {
+    "original": "What does each credit represent in the Information Technology (M.S.) program?",
+    "transformed": "What does each credit represent in the Information Technology (M.S.) program?",
+    "timestamp": "2025-11-01T22:24:52Z"
+  },
+  "What kind of graduate program is the Information Technology (M.S.) at UNH Manchester?": {
+    "original": "What kind of graduate program is the Information Technology (M.S.) at UNH Manchester?",
+    "transformed": "What kind of graduate program is the Information Technology (M.S.) at UNH Manchester?",
+    "timestamp": "2025-11-01T22:24:52Z"
+  },
+  "Which campus hosts the Information Technology (M.S.) program": {
+    "original": "Which campus hosts the Information Technology (M.S.) program",
+    "transformed": "What campus hosts the Information Technology (M.S.) program?",
+    "timestamp": "2025-11-01T22:24:52Z"
+  }
+}

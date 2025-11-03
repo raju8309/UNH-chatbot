@@ -10,7 +10,13 @@ from transformers import (
     TrainingArguments,
     DataCollatorForSeq2Seq
 )
-from datasets import Dataset
+try:
+    from datasets import Dataset
+except Exception as e:  # pragma: no cover - helpful runtime error
+    raise ImportError(
+        "The 'datasets' package is required but not installed.\n"
+        "Install it in your environment with: pip install datasets"
+    ) from e
 from sklearn.model_selection import train_test_split
 import random
 import numpy as np

@@ -1,0 +1,16 @@
+{
+  "failing": "failing grade",
+  "transfer": "transfer credit",
+  "capstone": "capstone requirement",
+  "time": "time limit for degree completion",
+  "gpa": "minimum GPA requirement",
+  "masters": "master’s program",
+  "phd": "Ph.D. program",
+  "thesis": "thesis or non-thesis option",
+  "comps": "comprehensive examination",
+  "audit": "audit option",
+  "repeat": "repeat course policy",
+  "probation": "academic probation",
+  "dismissal": "academic dismissal",
+  "leave": "leave of absence"
+}

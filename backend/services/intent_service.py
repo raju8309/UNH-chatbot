@@ -132,6 +132,18 @@ def detect_program_level(message: str, fallback: str = "unknown") -> str:
     
     return fallback or "unknown"
 
+def extract_degree_intent(text: str) -> Dict[str, bool]:
+    """
+    Return normalized degree-intent flags derived from the user's message.
+    This is used by the pipeline and program aliasing to decide whether the query
+    is explicitly scoped to MS/PhD/Certificate levels.
+    """
+    t = f" {(text or '').lower()} "
+    wants_ms = bool(re.search(r"\b(ms|m\.s\.|master'?s)\b", t))
+    wants_phd = bool(re.search(r"\b(phd|ph\.d\.|doctoral|doctorate)\b", t))
+    wants_cert = " certificate " in t or " graduate certificate " in t
+    return {"ms": wants_ms, "phd": wants_phd, "cert": wants_cert}
+
 def get_intent_template(intent_key: Optional[str]) -> Optional[str]:
     return INTENT_TEMPLATES.get(intent_key) if intent_key else None
 

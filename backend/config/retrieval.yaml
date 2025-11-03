@@ -52,14 +52,14 @@ intent:
 
 nudges:
   policy_acadreg_url: 1.07
-  same_program_bonus: 2.00            # used when alias_url matches same program family
-  course_url_bonus: 1.80              # boost when URL is the course search/description page
-  course_title_bonus: 1.40            # boost when title starts with the course code
-  other_program_tier34_penalty: 0.25  # strong demotion for program pages on course queries
+  same_program_bonus: 2.00
+  course_url_bonus: 1.80
+  course_title_bonus: 1.40
+  other_program_tier34_penalty: 0.25
 
 guarantees:
   ensure_tier1_on_policy: true
-  ensure_tier4_on_program: true       # still true, but main.py disables this for course queries
+  ensure_tier4_on_program: true
 
 tier4_gate:
   use_embedding: true
@@ -84,7 +84,91 @@ followups:
     - "this"
     - "same"
 
-# course retrieval strictness
 course_filters:
-  strict_subject_on_code: true   # only keep same-subject chunks for course-code queries
-  tier3_bonus: 1.30              # keep from before
+  strict_subject_on_code: true
+  tier3_bonus: 1.30
+
+gold_set:
+  # enable/disable gold set features
+  enabled: false
+  
+  # path to gold JSONL file (relative to backend/)
+  gold_file_path: "../automation_testing/gold.jsonl"
+  
+  # direct answer settings
+  enable_direct_answer: true
+  direct_answer_threshold: 0.95  # 95% similarity for direct answers
+
+enhancements:
+  enabled: false  # master switch for all enhancements
+  
+  # query Enhancement
+  query_enhancement:
+    enabled: true
+    expand_acronyms: true
+    boost_key_terms: true
+    policy_rewriting: true
+  
+  # re-ranking
+  reranking:
+    enabled: true
+    use_cross_encoder: true  # cross-encoder/ms-marco-MiniLM-L-6-v2
+    use_tfidf: true
+    use_metadata: true
+    max_candidates_for_cross_encoder: 20
+    diversity_threshold: 0.7
+    
+    # score combination weights (should sum to 1.0)
+    weights:
+      semantic: 0.25      
+      cross_encoder: 0.45 
+      tfidf: 0.15         
+      metadata: 0.15      
+  
+  # contextual Compression (rule-based)
+  compression:
+    enabled: true
+    deduplicate: true
+    aggressive: false
+    min_chunk_length: 200
+    compression_ratio:
+      tier1: 0.8
+      tier2: 0.7
+      tier3: 0.6
+      tier4: 0.5
+
+performance:
+  lazy_load_models: true
+  cache_size: 128
+  max_tokens: 128
+  
+  # boosting settings
+  tier_boost: 3.0
+  
+  gold_chunk_boost: 2.5
+  gold_url_boost: 1.5
+  gold_answer_boost: 1.8
+  
+  # ensure at least one gold chunk in results if relevant
+  ensure_gold_in_results: true
+  min_gold_score: 0.3
+  
+  # prefer gold answers when model is uncertain
+  prefer_gold_on_uncertainty: true
+  
+  # semantic matching settings
+  semantic_match:
+    enabled: true
+    threshold: 0.85
+    
+  # gold set statistics
+  stats:
+    total_entries: 0
+    categories: {}
+
+tier_boosts:
+  0: 3.0
+  1: 1.25
+  2: 1.10
+  3: 1.00
+  4: 1.00
