@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import sys, subprocess, json
 import shutil
+import argparse
 from pathlib import Path
 from datetime import datetime
 import asyncio
@@ -8,7 +9,7 @@ import asyncio
 ROOT   = Path(__file__).resolve().parents[1]
 PY     = sys.executable
 EVAL   = ROOT / "automation_testing" / "evaluator.py"
-GOLD   = ROOT / "automation_testing" / "gold.jsonl"
+DEFAULT_GOLD = ROOT / "automation_testing" / "gold.jsonl"
 
 sys.path.insert(0, str(ROOT / "backend"))
 
@@ -23,9 +24,12 @@ def run(cmd):
     print("→", " ".join(str(c) for c in cmd))
     subprocess.check_call(cmd)
 
-async def main():
-    if not GOLD.exists():
-        raise SystemExit(f"Missing gold file: {GOLD}")
+async def main(goldset_path):
+    # Use the specified goldset file
+    source_gold = Path(goldset_path).resolve()
+    
+    if not source_gold.exists():
+        raise SystemExit(f"Missing gold file: {source_gold}")
     if not EVAL.exists():
         raise SystemExit(f"Missing evaluator: {EVAL}")
 
@@ -35,10 +39,10 @@ async def main():
     report_dir = reports_dir / f"{timestamp}"
     report_dir.mkdir(parents=True, exist_ok=True)
 
-    # Copy gold.jsonl to the test run directory
+    # Copy gold.jsonl to the test run directory (always rename to gold.jsonl)
     gold_copy = report_dir / "gold.jsonl"
-    shutil.copy2(GOLD, gold_copy)
-    print(f"Copied {GOLD} to {gold_copy}")
+    shutil.copy2(source_gold, gold_copy)
+    print(f"Copied {source_gold} to {gold_copy}")
 
     # Load catalog
     load_retrieval_config()
@@ -47,7 +51,7 @@ async def main():
 
     # Generate predictions using the real pipeline
     preds_path = report_dir / "preds.jsonl"
-    with open(GOLD, "r", encoding="utf-8") as fin, open(preds_path, "w", encoding="utf-8") as fout:
+    with open(source_gold, "r", encoding="utf-8") as fin, open(preds_path, "w", encoding="utf-8") as fout:
         for line in fin:
             if not line.strip():
                 continue
@@ -85,4 +89,13 @@ async def main():
     print(f" - {report_dir / 'report.json'}")
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    parser = argparse.ArgumentParser(description="Run automation tests with a specified gold set")
+    parser.add_argument(
+        "--goldset",
+        type=str,
+        default=str(DEFAULT_GOLD),
+        help=f"Path to the gold set JSONL file (default: {DEFAULT_GOLD})"
+    )
+    args = parser.parse_args()
+    
+    asyncio.run(main(args.goldset))

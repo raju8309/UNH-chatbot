@@ -111,7 +111,7 @@ gold_set:
   direct_answer_threshold: 0.95  # 95% similarity for direct answers
 
 enhancements:
-  enabled: false  # master switch for all enhancements
+  enabled: true  # master switch for all enhancements
   
   # query Enhancement
   query_enhancement:
