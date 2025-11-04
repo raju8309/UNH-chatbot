@@ -14,6 +14,9 @@ from services.compression_service import OpenSourceCompressor
 from services.reranking_service import OpenSourceReranker
 from utils.course_utils import extract_course_fallbacks
 
+# NEW: calendar fallback import
+from services.calendar_fallback import maybe_calendar_fallback
+
 UNKNOWN = "I don't have that information."
 
 # lazy-loaded global service instances
@@ -154,8 +157,15 @@ def _answer_question(question: str, use_enhancements: bool = True) -> Tuple[str,
         k=retrieval_k)
 
     if not idxs:
+        # Apply internal fallbacks first
         answer = _apply_fallbacks(UNKNOWN, question, [])
-        return answer, [], retrieval_path, None
+
+        # Calendar fallback (no sources available in this branch)
+        cal_fb = maybe_calendar_fallback(question, answer, [])
+        if cal_fb:
+            return cal_fb, [], [], None
+
+        return answer, [], [], None
     
     # log if gold chunk was retrieved
     has_gold = any(entry.get("is_gold", False) for entry in retrieval_path)
@@ -237,9 +247,22 @@ def _answer_question(question: str, use_enhancements: bool = True) -> Tuple[str,
     # Clean up the answer (remove source markers, limit length)
     answer = _clean_answer(answer)
     
-    # apply fallbacks
+    # Apply internal fallbacks
     answer = _apply_fallbacks(answer, question, top_chunks)
-    # build sources
+
+    # Collect readable titles for calendar-fallback signal
+    try:
+        source_titles = [src.get("title") or src.get("name") or "" for _, src in top_chunks if isinstance(src, dict)]
+    except Exception:
+        source_titles = []
+
+    # Calendar fallback last (only when the model didn't provide a concrete deadline/term date)
+    cal_fb = maybe_calendar_fallback(question, answer, source_titles)
+    if cal_fb:
+        # No citations for a pure calendar link response
+        return cal_fb, [], retrieval_path, context
+
+    # Build citations
     citation_lines = build_citations(question, top_chunks, retrieval_path)
 
     return answer, citation_lines, retrieval_path, context
@@ -317,17 +340,6 @@ def build_citations(question, chunks: List[Tuple[str, Dict]], retrieval_path: Li
         citation_lines.append(line)
 
     return citation_lines
-
-def get_prompt(question: str, context: str) -> str:
-    return (
-        "Using ONLY the provided context, write a concise explanation in exactly 2–3 complete sentences.\n"
-        "Mention requirements, deadlines, or procedures if they are present.\n"
-        f"If the context is insufficient, output exactly: {UNKNOWN}\n"
-        "Do not include assumptions, examples, or general knowledge beyond the context.\n\n"
-        f"Context: {context}\n\n"
-        f"Question: {question}\n\n"
-        "Detailed explanation:"
-    )
 
 @lru_cache(maxsize=128)
 def cached_answer_with_path(message: str) -> Tuple[str, List[str], List[Dict], Optional[str]]:

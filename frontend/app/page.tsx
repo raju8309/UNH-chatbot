@@ -10,6 +10,27 @@ export type ChatMessage = {
   sources?: string[];
 };
 
+// tiny helper to make links clickable (Markdown + raw URLs)
+function linkify(text: string) {
+  let out = text;
+
+  // Convert Markdown-style links first
+  const mdLinkRx = /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g;
+  if (mdLinkRx.test(out)) {
+    out = out.replace(
+      mdLinkRx,
+      '<a href="$2" target="_blank" rel="noopener noreferrer" class="text-blue-700 underline">$1</a>'
+    );
+  } else {
+    // Then convert plain URLs
+    out = out.replace(
+      /(https?:\/\/[^\s)]+)(\)?)/g,
+      '<a href="$1" target="_blank" rel="noopener noreferrer" class="text-blue-700 underline">$1</a>'
+    );
+  }
+  return out;
+}
+
 // ----- Sources helpers (limit, dedupe, numbering, collapse) -----
 type RawSource = { title: string; url?: string };
 type ProcessedSource = RawSource & { stem: string; domain: string; label: string };
@@ -347,7 +368,11 @@ export default function Home() {
                       </div>
                     </div>
                     <div className="bg-[var(--unh-light-gray)] text-black rounded-2xl break-words whitespace-pre-line m-1 px-6 py-4 text-lg md:text-xl max-w-[800px] w-fit block box-border shadow-md">
-                      <div>{msg.content}</div>
+                      {/* >>> CHANGED: render bot text as HTML so links are clickable */}
+                      <div
+                        dangerouslySetInnerHTML={{ __html: linkify(msg.content) }}
+                      />
+                      {/* <<< CHANGED */}
                       {Array.isArray(msg.sources) && msg.sources.length > 0 && (() => {
                         const { visible, hidden } = processSources(msg.sources, VISIBLE_SOURCE_CAP);
                         return (
