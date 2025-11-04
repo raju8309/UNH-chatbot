@@ -1,6 +1,7 @@
 import re
 from functools import lru_cache
 from typing import List, Tuple, Dict, Optional
+
 from models.ml_models import get_qa_pipeline
 from services.chunk_service import get_chunks_data
 from services.retrieval_service import search_chunks
@@ -10,6 +11,9 @@ from services.query_enhancement import OpenSourceQueryEnhancer
 from services.compression_service import OpenSourceCompressor
 from services.reranking_service import OpenSourceReranker
 from utils.course_utils import extract_course_fallbacks
+
+# NEW: calendar fallback import
+from services.calendar_fallback import maybe_calendar_fallback
 
 UNKNOWN = "I don't have that information."
 
@@ -181,8 +185,14 @@ def _answer_question_unified(
     )
 
     if not idxs:
-        # Apply fallbacks even if no chunks retrieved
+        # Apply internal fallbacks first
         answer = apply_fallbacks(UNKNOWN, question, [], intent_key, course_norm)
+
+        # Calendar fallback (no sources available in this branch)
+        cal_fb = maybe_calendar_fallback(question, answer, [])
+        if cal_fb:
+            return cal_fb, [], [], None
+
         return answer, [], [], None
 
     # log if gold chunk was retrieved
@@ -242,7 +252,20 @@ def _answer_question_unified(
     except Exception as exc:
         answer = f"ERROR running model: {exc}"
 
+    # Internal fallbacks first
     answer = apply_fallbacks(answer, question, top_chunks, intent_key, course_norm)
+
+    # Collect readable titles for calendar-fallback signal
+    try:
+        source_titles = [src.get("title") or src.get("name") or "" for _, src in top_chunks if isinstance(src, dict)]
+    except Exception:
+        source_titles = []
+
+    # Calendar fallback last (only when the model didn't provide a concrete deadline/term date)
+    cal_fb = maybe_calendar_fallback(question, answer, source_titles)
+    if cal_fb:
+        # No citations for a pure calendar link response
+        return cal_fb, [], retrieval_path, context
 
     citation_lines = build_citations(top_chunks, retrieval_path)
 
