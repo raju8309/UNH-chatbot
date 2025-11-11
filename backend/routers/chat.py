@@ -3,53 +3,10 @@ from typing import Optional
 from fastapi import APIRouter, Header, HTTPException
 from general_responses import get_generic_response
 from models.api_models import ChatRequest, ChatResponse
-from services.session_service import get_session, update_session, clear_session, clear_all_sessions, push_history, now_iso
+from services.session_service import update_session, clear_session, clear_all_sessions, push_history, now_iso
 from utils.logging_utils import log_chat_interaction
-import importlib
-
+from services.query_pipeline import process_question_for_retrieval
 router = APIRouter()
-
-# New helper to wrap available query pipeline functions and normalize output
-def _process_question(question: str) -> dict:
-    qp = importlib.import_module("services.query_pipeline")
-    # Try preferred function
-    if hasattr(qp, "cached_answer_with_path"):
-        out = qp.cached_answer_with_path(question)
-        if isinstance(out, dict):
-            return {
-                "answer": out.get("answer") or out.get("response") or "",
-                "sources": out.get("sources") or [],
-                "retrieval_path": out.get("retrieval_path") or out.get("path") or [],
-                "transformed_query": out.get("transformed_query") or question,
-            }
-        if isinstance(out, tuple):
-            answer = out[0] if len(out) > 0 else ""
-            sources = out[1] if len(out) > 1 else []
-            retrieval_path = out[2] if len(out) > 2 else []
-            transformed_query = out[3] if len(out) > 3 else question
-            return {
-                "answer": answer,
-                "sources": sources,
-                "retrieval_path": retrieval_path,
-                "transformed_query": transformed_query,
-            }
-        # Fallback if unexpected type
-        return {
-            "answer": str(out),
-            "sources": [],
-            "retrieval_path": [],
-            "transformed_query": question,
-        }
-    # Fallback to _answer_question
-    if hasattr(qp, "_answer_question"):
-        answer = qp._answer_question(question)
-        return {
-            "answer": answer,
-            "sources": [],
-            "retrieval_path": [],
-            "transformed_query": question,
-        }
-    raise RuntimeError("No suitable query function found in services.query_pipeline")
 
 @router.post("/chat", response_model=ChatResponse)
 async def answer_question(request: ChatRequest, x_session_id: Optional[str] = Header(default=None)):
@@ -66,7 +23,7 @@ async def answer_question(request: ChatRequest, x_session_id: Optional[str] = He
         return ChatResponse(answer=resp, sources=[], retrieval_path=[])
     
     # Process question
-    result = _process_question(incoming_message)
+    result = process_question_for_retrieval(incoming_message)
     answer = result["answer"]
     
     # Update session with last question

@@ -70,14 +70,13 @@ def _wrap_sources_with_text_fragments(
 
 def get_prompt(question: str, context: str) -> str:
     return (
-        "You must answer in EXACTLY 1-2 short sentences. No more.\n"
-        "Answer ONLY the specific question asked. Do not add extra information.\n"
-        "Do NOT mention courses, petitions, or procedures unless directly asked.\n"
-        "Do NOT include source markers like [Source 1].\n"
-        f"If you cannot answer, say: {UNKNOWN}\n\n"
-        f"Context:\n{context}\n\n"
+        "Using ONLY the provided context, write a concise explanation in exactly 2–3 complete sentences.\n"
+        "Mention requirements, deadlines, or procedures if they are present.\n"
+        f"If the context is insufficient, output exactly: {UNKNOWN}\n"
+        "Do not include assumptions, examples, or general knowledge beyond the context.\n\n"
+        f"Context: {context}\n\n"
         f"Question: {question}\n\n"
-        f"Answer (1-2 sentences only):"
+        "Detailed explanation:"
     )
 
 def _clean_answer(answer: str) -> str:
