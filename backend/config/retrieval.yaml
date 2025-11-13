@@ -73,16 +73,16 @@ tier4_gate:
 
 retrieval_sizes:
   topn_default: 120
-  k: 5
+  k: 4  # Number of chunks sent to LLM for answer generation
 
 # chunking configuration
 chunking:
   enable_contextual_headers: true     # prepend section hierarchy to chunks
-  enable_overlap: true                # use overlapping chunks
-  text_chunk_size: 2                  # number of text items per chunk
-  text_overlap: 1                     # overlap for text chunks
-  list_chunk_size: 5                  # number of list items per chunk
-  list_overlap: 2                     # overlap for list chunks
+  enable_overlap: false               # disable overlapping (not useful with size=1)
+  text_chunk_size: 1                  # number of text items per chunk (reduced for more focused Q&A)
+  text_overlap: 0                     # overlap for text chunks (no overlap needed with size=1)
+  list_chunk_size: 3                  # number of list items per chunk (reduced for more focused Q&A)
+  list_overlap: 0                     # no overlap needed with small chunks
 
 followups:
   hints:
@@ -181,11 +181,12 @@ performance:
 
 # Synthetic Q&A Generation - improves semantic matching without gold set
 synthetic_qa:
-  enabled: false  # Generate Q&A pairs from catalog chunks using LLM
-  boost_synthetic_qa: 1.3  # Slight boost for synthetic Q&A chunks (they match queries better)
+  enabled: true  # Generate Q&A pairs from catalog chunks using LLM
+  boost_synthetic_qa: 1.0  # Slight boost for synthetic Q&A chunks (they match queries better)
   min_chunk_length: 50  # Skip chunks shorter than this
+  questions_per_chunk: 3  # Generate multiple questions per chunk for better coverage
   question_model: "google/flan-t5-large" # Model for question generation (only runs during indexing, not live)
-  temperature: 0.5  # Lower = more focused questions
+  temperature: 0.7  # Higher temperature for diversity across multiple questions
   max_question_length: 60  # Max tokens for generated questions
   force_cpu: true  # Force CPU for generation (set to false to try GPU)
   
@@ -194,7 +195,34 @@ synthetic_qa:
   # Tier 0: Gold set, Tier 1: Academic regs, Tier 2: General, Tier 3: Program-specific, Tier 4: Other programs
   # Example: [1, 2] = only academic regulations and general info (~2000 chunks = ~1hr on CPU)
   # Example: "all" = all chunks (~11000 chunks = ~6-15hrs on CPU)
+  # NOTE: With questions_per_chunk=3, generation time ~3x longer
   generate_for_tiers: [1, 2]  # Only generate for important chunks to save time
+  
+  # Specific programs to generate Q&A for (in addition to tiers above)
+  # Leave empty [] to skip program-specific generation
+  # Program URLs must match exactly (case-sensitive)
+  generate_for_programs:
+    - "biotechnology-industrial-biomedical-sciences-ms"
+    - "cybersecurity-engineering-ms"
+    - "information-technology-ms"
+
+# HyDE (Hypothetical Document Embeddings) - query-time enhancement
+# Instead of embedding the query, generate a hypothetical answer and embed that
+# This improves retrieval by matching answer-to-answer instead of query-to-answer
+# NOTE: This runs at QUERY TIME (every user query), so speed is critical!
+hyde:
+  enabled: false  # Enable HyDE for query expansion
+  model: "google/flan-t5-small"  # SMALL model for speed (runs every query!) - can try "base" if too slow
+  force_cpu: true  # Use GPU if available for faster generation (queries need to be fast)
+  max_tokens: 100  # Maximum tokens for hypothetical document (reduced for speed)
+  temperature: 0.5  # Lower = more focused, higher = more diverse
+  min_query_words: 3  # Minimum words in query to use HyDE (skip for very short queries)
+  verbose: false  # Set to true to see HyDE generations in logs
+  
+  # Hybrid mode: combine original query + HyDE results
+  hybrid_mode: false  # If true, search with both original query AND HyDE, then merge
+  hybrid_weight_original: 0.3  # Weight for original query results (if hybrid_mode=true)
+  hybrid_weight_hyde: 0.7  # Weight for HyDE results (if hybrid_mode=true)
 
 # gold set statistics
 stats:

@@ -6,6 +6,7 @@ from config.settings import get_config, get_policy_terms
 from models.ml_models import get_embed_model
 from services.chunk_service import get_chunks_data, get_chunk_norms
 from services.gold_set_service import get_gold_manager
+from services.hyde_service import get_hyde_generator
 
 def _tier_boost(tier: int, query: str = "") -> float:
     cfg = get_config()
@@ -119,6 +120,9 @@ def search_chunks(
     """
     Simplified search without broken intent/program detection.
     Uses only the query text and basic tier filtering.
+    
+    Optionally uses HyDE (Hypothetical Document Embeddings) to improve retrieval
+    by generating a hypothetical answer and embedding that instead of the query.
     """
 
     cfg = get_config()
@@ -153,7 +157,31 @@ def search_chunks(
                     }]
                     return [idx], retrieval_path
 
-    q_vec = embed_model.encode([query], convert_to_numpy=True)[0]
+    # === HyDE Integration ===
+    # Check if we should use HyDE for this query
+    hyde_cfg = cfg.get("hyde", {})
+    use_hyde = hyde_cfg.get("enabled", False)
+    
+    if use_hyde:
+        try:
+            hyde_gen = get_hyde_generator()
+            if hyde_gen.should_use_hyde(query):
+                # Generate hypothetical document and use it for embedding
+                search_text = hyde_gen.generate_hypothetical_document(query)
+                if hyde_cfg.get("verbose", False):
+                    print(f"\n[HyDE] Using hypothetical doc for search")
+            else:
+                search_text = query
+                if hyde_cfg.get("verbose", False):
+                    print(f"\n[HyDE] Skipping (query too short or simple)")
+        except Exception as e:
+            print(f"Warning: HyDE generation failed, using original query: {e}")
+            search_text = query
+    else:
+        search_text = query
+    # === End HyDE Integration ===
+
+    q_vec = embed_model.encode([search_text], convert_to_numpy=True)[0]
     chunk_norms = get_chunk_norms()
     query_norm = np.linalg.norm(q_vec)
     valid_chunks = chunk_norms > 1e-8

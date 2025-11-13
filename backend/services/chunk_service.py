@@ -96,9 +96,13 @@ def load_json_file(path: str) -> None:
     new_texts: List[str] = []
     new_sources: List[Dict[str, Any]] = []
     new_meta: List[Dict[str, Any]] = []
+    seen_chunks: set = set()  # Track seen chunks to avoid duplicates
+    duplicates_skipped = 0
     
     def add_chunk_with_context(text: str, title: str, url: str) -> None:
         """Add a chunk with contextual header prepended."""
+        nonlocal duplicates_skipped
+        
         # Only add if at least 3 words and either contains sentence-ending punctuation or is long enough
         word_count = len(text.split())
         has_sentence_punct = any(p in text for p in ".!?")
@@ -121,6 +125,15 @@ def load_json_file(path: str) -> None:
                 contextual_chunk = f"{section_name}\n\n{text}"
             else:
                 contextual_chunk = text
+            
+            # Deduplicate: Check if we've seen this exact chunk before
+            # Use normalized text (lowercase, stripped) as key
+            chunk_key = contextual_chunk.lower().strip()
+            if chunk_key in seen_chunks:
+                duplicates_skipped += 1
+                return
+            
+            seen_chunks.add(chunk_key)
             new_texts.append(contextual_chunk)
             src = {"title": title, "url": url}
             new_sources.append(src)
@@ -265,6 +278,8 @@ def load_json_file(path: str) -> None:
         if chunks_embeddings is not None:
             CHUNK_NORMS = np.linalg.norm(chunks_embeddings, axis=1)
         print(f"Loaded {len(new_texts)} chunks from {path}")
+        if duplicates_skipped > 0:
+            print(f"  Skipped {duplicates_skipped} duplicate chunks")
     else:
         print(f"WARNING: No text found in {path}")
     print(f"[loader] Pages parsed: {page_count}")
@@ -294,10 +309,10 @@ def load_initial_data() -> None:
             from services.synthetic_qa_service import get_qa_generator
             qa_gen = get_qa_generator()
             
-            # Create Q&A versions of existing chunks
-            original_chunks = list(zip(chunk_texts, chunk_meta))
+            # Create Q&A versions of existing chunks (pass sources too)
+            original_chunks = list(zip(chunk_texts, chunk_meta, chunk_sources))
             augmented = qa_gen.augment_chunks_with_qa(
-                [(text, meta) for text, meta in zip(chunk_texts, chunk_meta)]
+                [(text, meta, source) for text, meta, source in zip(chunk_texts, chunk_meta, chunk_sources)]
             )
             
             # Extract the NEW synthetic chunks (skip originals)
@@ -305,9 +320,9 @@ def load_initial_data() -> None:
             
             if synthetic_chunks:
                 embed_model = get_embed_model()
-                new_texts = [text for text, _ in synthetic_chunks]
-                new_meta = [meta for _, meta in synthetic_chunks]
-                new_sources = [chunk_sources[i % len(chunk_sources)] for i in range(len(synthetic_chunks))]
+                new_texts = [text for text, _, _ in synthetic_chunks]
+                new_meta = [meta for _, meta, _ in synthetic_chunks]
+                new_sources = [source for _, _, source in synthetic_chunks]
                 
                 # Embed synthetic chunks
                 new_embeds = embed_model.encode(new_texts, convert_to_numpy=True)
