@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import List, Dict, Optional, Set
+from typing import List, Dict, Optional, Set, Tuple
 import numpy as np
 from sentence_transformers import SentenceTransformer
 from langchain_core.documents import Document
@@ -10,13 +10,17 @@ import sys
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from data.gold_db import GoldSetDB
 
+
 class GoldSetManager:
-    def __init__(self, db_path: str = "data/gold_set.db"):
+    def __init__(self, db_path: str = None):
         # load configuration
         self.config = get_config()
         self.enabled = self.config.get("gold_set", {}).get("enabled", True)
 
-        # database setup
+        # database setup - resolve path relative to this file
+        if db_path is None:
+            # Default: backend/data/gold_set.db relative to this file
+            db_path = Path(__file__).parent.parent / "data" / "gold_set.db"
         self.db_path = Path(db_path)
         self.db = None
 
@@ -36,11 +40,28 @@ class GoldSetManager:
 
     def _initialize_database(self):
         try:
+            # Ensure the database file exists
+            if not self.db_path.exists():
+                print(f"WARNING: Gold set database not found at: {self.db_path}")
+                print(f"         Absolute path: {self.db_path.absolute()}")
+                # Check if migration is needed
+                parent_dir = self.db_path.parent
+                if parent_dir.exists():
+                    print(f"         Database directory exists but file is missing")
+                    print(f"         Run: python backend/data/migrate_gold_db.py")
+                else:
+                    print(f"         Database directory does not exist: {parent_dir}")
+                self.db = None
+                return
+            
+            print(f"Loading gold set database from: {self.db_path.absolute()}")
             self.db = GoldSetDB(str(self.db_path))
             stats = self.db.get_statistics()
             print(f"Gold set database initialized: {stats['total_questions']} questions")
         except Exception as e:
             print(f"Error initializing gold set database: {e}")
+            import traceback
+            traceback.print_exc()
             self.db = None
 
     def _load_cache(self):
@@ -87,17 +108,28 @@ class GoldSetManager:
                 if nuggets:
                     content += f"\n\nKey Points: {'; '.join(nuggets)}"
 
+                # Create a clean, user-friendly title from category
+                gold_id = full_q['id']
+                category = full_q.get('category', '')
+                if category:
+                    # Convert "academic-standards" to "Academic Standards"
+                    clean_category = category.replace('-', ' ').replace('_', ' ').title()
+                    friendly_title = f"{clean_category} Information"
+                else:
+                    friendly_title = "Graduate Catalog Information"
+
                 doc = Document(
                     page_content=content,
                     metadata={
                         'source': 'gold_set',
-                        'gold_id': full_q['id'],
+                        'gold_id': gold_id,
                         'url': full_q['url'],
                         'tier': 0,
                         'is_gold': True,
                         'original_query': full_q['query'],
                         'gold_passages': full_q.get('gold_passages', []),
-                        'category': full_q.get('category', '')
+                        'category': category,
+                        'title': friendly_title  # Use friendly title instead of "Gold Q&A: id"
                     }
                 )
                 documents.append(doc)
@@ -176,6 +208,99 @@ class GoldSetManager:
 
         return None
 
+    def get_direct_answer_with_similarity(
+        self, 
+        query: str, 
+        threshold: float = None
+    ) -> Optional[Tuple[str, float, Dict]]:
+        """
+        Check if query has high semantic similarity to a gold set question.
+        If similarity exceeds threshold, return the gold answer directly.
+        
+        Returns:
+            Tuple of (answer, similarity_score, metadata) if match found, else None
+        """
+        if not self.enabled or self.gold_embeddings is None or self.embed_model is None:
+            return None
+        if not self.db:
+            return None
+        
+        # Use threshold from config if not provided
+        if threshold is None:
+            gold_cfg = self.config.get("gold_set", {})
+            threshold = float(gold_cfg.get("direct_answer_threshold", 0.85))
+        
+        try:
+            # Encode the query
+            query_embedding = self.embed_model.encode([query], convert_to_numpy=True)[0]
+            
+            # Compute similarities with all gold questions
+            similarities = np.dot(self.gold_embeddings, query_embedding) / (
+                np.linalg.norm(self.gold_embeddings, axis=1) * np.linalg.norm(query_embedding)
+            )
+
+            # Find best match
+            best_idx = int(np.argmax(similarities))
+            best_score = float(similarities[best_idx])
+
+            # If similarity exceeds threshold, return direct answer
+            if best_score >= threshold:
+                question_id = self.gold_question_ids[best_idx]
+                entry = self.db.get_question_by_id(question_id)
+                
+                if entry:
+                    answer = entry.get('reference_answer', '')
+                    metadata = {
+                        'gold_id': question_id,
+                        'gold_query': entry.get('query', ''),
+                        'url': entry.get('url', ''),
+                        'similarity_score': best_score,
+                        'match_type': 'direct_gold_match',
+                        'nuggets': entry.get('nuggets', []),
+                        'category': entry.get('category', '')
+                    }
+                    
+                    print(f"[GOLD SET] Direct answer match found: {question_id} (similarity: {best_score:.3f})")
+                    return (answer, best_score, metadata)
+        
+        except Exception as e:
+            print(f"Error in direct answer matching: {e}")
+        
+        return None
+
+    def should_use_direct_answer(self, query: str) -> bool:
+        """
+        Check if we should bypass retrieval and use direct gold answer.
+        
+        Returns:
+            True if high similarity match exists and direct answers are enabled
+        """
+        if not self.enabled:
+            return False
+        
+        gold_cfg = self.config.get("gold_set", {})
+        if not gold_cfg.get("enable_direct_answer", True):
+            return False
+        
+        threshold = float(gold_cfg.get("direct_answer_threshold", 0.85))
+        result = self.get_direct_answer_with_similarity(query, threshold)
+        
+        return result is not None
+
+    def get_direct_answer(self, query: str, threshold: float = 0.85) -> Optional[str]:
+        """
+        Legacy method - returns just the answer string.
+        For new code, use get_direct_answer_with_similarity() instead.
+        """
+        if not self.enabled:
+            return None
+
+        result = self.get_direct_answer_with_similarity(query, threshold)
+        if result:
+            answer, _, _ = result
+            return answer
+        return None
+
     def is_gold_url(self, url: str) -> bool:
         if not self.enabled:
             return False
@@ -202,15 +327,6 @@ class GoldSetManager:
 
         return boost
 
-    def get_direct_answer(self, query: str, threshold: float = 0.85) -> Optional[str]:
-        if not self.enabled:
-            return None
-
-        match = self.find_matching_gold_entry(query, threshold)
-        if match:
-            return match.get('reference_answer')
-        return None
-
     def get_statistics(self) -> Dict:
         if not self.enabled or not self.db:
             return {
@@ -218,17 +334,22 @@ class GoldSetManager:
                 'total_entries': 0,
                 'total_questions': 0,
                 'categories': {},
-                'has_embeddings': False
+                'has_embeddings': False,
+                'direct_answer_enabled': False,
+                'direct_answer_threshold': 0.0
             }
 
         try:
             stats = self.db.get_statistics()
+            gold_cfg = self.config.get("gold_set", {})
             return {
                 'enabled': True,
                 'total_entries': stats['total_questions'],
                 'total_questions': len(self.gold_questions),
                 'categories': stats['categories'],
-                'has_embeddings': stats['has_embeddings']
+                'has_embeddings': stats['has_embeddings'],
+                'direct_answer_enabled': gold_cfg.get('enable_direct_answer', True),
+                'direct_answer_threshold': gold_cfg.get('direct_answer_threshold', 0.85)
             }
         except Exception as e:
             print(f"Error getting statistics: {e}")
@@ -237,7 +358,9 @@ class GoldSetManager:
                 'total_entries': 0,
                 'total_questions': len(self.gold_questions),
                 'categories': {},
-                'has_embeddings': False
+                'has_embeddings': False,
+                'direct_answer_enabled': False,
+                'direct_answer_threshold': 0.0
             }
 
     def search_questions(self, search_term: str) -> List[Dict]:
