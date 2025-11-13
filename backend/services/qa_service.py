@@ -49,7 +49,6 @@ def _extract_best_credits(chunks):
             return text, meta, match.group(1)
     return None
 
-
 def _wrap_sources_with_text_fragments(
     sources_with_passages: List[Tuple[str, Dict]],
     question: str

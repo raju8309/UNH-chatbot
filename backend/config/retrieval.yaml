@@ -102,7 +102,7 @@ beam_search:
 
 gold_set:
   # enable/disable gold set features
-  enabled: false  # Disabled to test actual LLM performance
+  enabled: true  # Disabled to test actual LLM performance
   
   # path to gold JSONL file (relative to backend/)
   gold_file_path: "../automation_testing/gold.jsonl"
