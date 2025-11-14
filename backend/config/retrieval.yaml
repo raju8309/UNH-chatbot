@@ -73,7 +73,11 @@ tier4_gate:
 
 retrieval_sizes:
   topn_default: 120
-  k: 3  # Number of chunks sent to LLM for answer generation
+  k: 2  # Number of chunks sent to LLM
+
+# Query transformation configuration
+query_transformation:
+  enabled: false
 
 # chunking configuration
 chunking:
