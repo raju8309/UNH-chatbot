@@ -1,6 +1,7 @@
 from pathlib import Path
 from typing import Any
 from config.settings import get_config
+from typing import Any, List
 import os
 
 try:
@@ -105,3 +106,16 @@ def call_model(prompt: str) -> str:
 def generate_text(prompt: str) -> str:
     """Alias to call_model for compatibility."""
     return call_model(prompt)
+
+def get_text_embedding(text: str) -> List[float]:
+    """Return a single text embedding as a list of floats.
+
+    This reuses the global SentenceTransformer instance so that other
+    services (e.g. query_transform_service) can compute semantic
+    similarity between the original and rewritten queries.
+    """
+    model = get_embed_model()
+    # encode returns a numpy array when convert_to_numpy=True; we convert
+    # to a plain Python list for easier downstream use.
+    emb = model.encode([text], convert_to_numpy=True)[0]
+    return emb.tolist()
