@@ -1,0 +1,17 @@
+# MS MARCO Fine-tuning Requirements
+# Install these in addition to your existing requirements
+
+# Core training dependencies
+datasets>=2.14.0           # HuggingFace datasets for MS MARCO
+sentence-transformers>=2.2.2  # Already in your requirements, but ensure version
+transformers>=4.30.0       # Needed for latest models
+
+# Training utilities
+torch>=2.0.0              # PyTorch (GPU recommended)
+accelerate>=0.20.0        # For distributed training (optional but recommended)
+
+# Progress tracking
+tqdm>=4.65.0              # Progress bars
+
+# Evaluation
+scikit-learn>=1.3.0       # For evaluation metrics
