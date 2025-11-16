@@ -1,20 +1,23 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
-// API endpoint for chat
+
 const CHAT_API_URL = "/chat";
 
 export type ChatMessage = {
   role: string;
   content: string;
   sources?: string[];
+  hasAlternative?: boolean;
+  alternativeAnswer?: string;
+  alternativeSources?: string[];
+  answerMode?: string;
+  goldSimilarity?: number;
+  selectedVersion?: "primary" | "alternative";
 };
 
-// tiny helper to make links clickable (Markdown + raw URLs)
 function linkify(text: string) {
   let out = text;
-
-  // Convert Markdown-style links first
   const mdLinkRx = /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g;
   if (mdLinkRx.test(out)) {
     out = out.replace(
@@ -22,7 +25,6 @@ function linkify(text: string) {
       '<a href="$2" target="_blank" rel="noopener noreferrer" class="text-blue-700 underline">$1</a>'
     );
   } else {
-    // Then convert plain URLs
     out = out.replace(
       /(https?:\/\/[^\s)]+)(\)?)/g,
       '<a href="$1" target="_blank" rel="noopener noreferrer" class="text-blue-700 underline">$1</a>'
@@ -31,105 +33,79 @@ function linkify(text: string) {
   return out;
 }
 
-// ----- Sources helpers (limit, dedupe, numbering, collapse) -----
-type RawSource = { title: string; url?: string };
-type ProcessedSource = RawSource & { stem: string; domain: string; label: string };
-const VISIBLE_SOURCE_CAP = 3; // set to 3 or 4 as desired
-
-// Parse a single "- Title (url)" or "- Title" line into title/url
-function parseSourceLine(src: string): RawSource {
-  const match = src.match(/^-\s*(.+?)\s*\(([^)]+)\)\s*$/);
-  if (match) {
-    return { title: match[1], url: match[2] };
-  }
-  // Fallback: strip leading "- " if present
-  const clean = src.replace(/^-+\s*/, "").trim();
-  return { title: clean || src };
+function AnswerVersion({ 
+  answer, 
+  sources, 
+  isSelected, 
+  onSelect, 
+  label, 
+  badge 
+}: {
+  answer: string;
+  sources?: string[];
+  isSelected: boolean;
+  onSelect: () => void;
+  label: string;
+  badge?: string;
+}) {
+  return (
+    <div 
+      className={`rounded-2xl p-4 cursor-pointer transition-all ${
+        isSelected 
+          ? 'bg-[var(--unh-light-gray)] shadow-md ring-2 ring-[var(--unh-blue)]' 
+          : 'bg-gray-50 hover:bg-gray-100'
+      }`}
+      onClick={onSelect}
+    >
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center gap-2">
+          <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
+            isSelected ? 'border-[var(--unh-blue)] bg-[var(--unh-blue)]' : 'border-gray-400'
+          }`}>
+            {isSelected && <div className="w-2 h-2 bg-white rounded-full"></div>}
+          </div>
+          <span className="font-medium text-sm">{label}</span>
+        </div>
+        {badge && (
+          <span className="text-xs px-2 py-1 rounded bg-blue-100 text-blue-800 font-medium">
+            {badge}
+          </span>
+        )}
+      </div>
+      
+      <div 
+        className="text-black text-base"
+        dangerouslySetInnerHTML={{ __html: linkify(answer) }}
+      />
+      
+      {sources && sources.length > 0 && (
+        <div className="mt-3 pt-3 border-t border-gray-300">
+          <div className="font-semibold text-sm mb-1">Sources:</div>
+          <ul className="list-disc list-inside text-sm text-gray-700">
+            {sources.map((s, idx) => {
+              const match = s.match(/^-\s*(.+?)\s*\(([^)]+)\)$/);
+              if (match) {
+                return (
+                  <li key={idx}>
+                    <a
+                      href={match[2]}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="underline text-blue-700"
+                    >
+                      {match[1]}
+                    </a>
+                  </li>
+                );
+              }
+              return <li key={idx}>{s.replace(/^-\s*/, "")}</li>;
+            })}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
 }
-
-function normalizeUrl(raw?: string) {
-  try {
-    if (!raw) return { stem: "", domain: "" };
-    const u = new URL(raw);
-    const domain = u.hostname.replace(/^www\./, "");
-    // Drop query string; keep origin + pathname as the stem (anchors often create dupes)
-    const stem = `${u.origin}${u.pathname}`;
-    return { stem, domain };
-  } catch {
-    return { stem: raw || "", domain: "" };
-  }
-}
-
-function scoreSource(title: string, stem: string): number {
-  const t = title.toLowerCase();
-  let s = 0;
-  if (t.includes("catalog") || stem.includes("/catalog/")) s += 3;
-  if (t.includes("requirements") || t.includes("degree")) s += 2;
-  if (t.includes("program") || t.includes("ph.d") || t.includes("ms") || t.includes("m.s")) s += 1;
-  return s;
-}
-
-function dedupeAndRank(raw: RawSource[]): (RawSource & { stem: string; domain: string; score: number })[] {
-  const enriched = raw.map(r => {
-    const n = normalizeUrl(r.url);
-    return { ...r, ...n, score: scoreSource(r.title, n.stem) };
-  });
-
-  // Keep the best per *full URL* (includes #anchor). If URL is missing, fall back to title
-  // so title-only items are not dropped.
-  const best = new Map<string, (RawSource & { stem: string; domain: string; score: number })>();
-  for (const e of enriched) {
-    const urlKey = (e.url ?? "").trim().toLowerCase(); // preserves #anchor if present
-    const key = urlKey || e.title.trim().toLowerCase();
-    const prev = best.get(key);
-    if (!prev || e.score > prev.score) best.set(key, e);
-  }
-
-  return Array.from(best.values()).sort((a, b) => b.score - a.score || a.title.length - b.title.length);
-}
-
-function splitAndLabel(
-  ranked: (RawSource & { stem: string; domain: string })[],
-  visibleMax = VISIBLE_SOURCE_CAP
-): { visible: ProcessedSource[]; hidden: ProcessedSource[] } {
-  const visible = ranked.slice(0, visibleMax);
-  const hidden = ranked.slice(visibleMax);
-
-  // Count duplicates by exact title (case-insensitive) across ALL sources (visible + hidden)
-  const normalizeTitle = (t: string) => t.trim().replace(/\s+/g, " ").toLowerCase();
-  const titleCounts: Record<string, number> = {};
-  ranked.forEach(v => {
-    const key = normalizeTitle(v.title);
-    titleCounts[key] = (titleCounts[key] || 0) + 1;
-  });
-
-  const titleIndex: Record<string, number> = {};
-  const labeledVisible: ProcessedSource[] = visible.map(v => {
-    const key = normalizeTitle(v.title);
-    if (titleCounts[key] > 1) {
-      titleIndex[key] = (titleIndex[key] || 0) + 1;
-      return { ...v, label: `${v.title} (${titleIndex[key]})` };
-    }
-    return { ...v, label: v.title };
-  });
-
-  const processedHidden: ProcessedSource[] = hidden.map(h => {
-    const key = normalizeTitle(h.title);
-    if (titleCounts[key] > 1) {
-      titleIndex[key] = (titleIndex[key] || 0) + 1;
-      return { ...h, label: `${h.title} (${titleIndex[key]})` };
-    }
-    return { ...h, label: h.title };
-  });
-  return { visible: labeledVisible, hidden: processedHidden };
-}
-
-function processSources(rawLines: string[], visibleMax = VISIBLE_SOURCE_CAP) {
-  const parsed: RawSource[] = rawLines.map(parseSourceLine);
-  const ranked = dedupeAndRank(parsed);
-  return splitAndLabel(ranked, visibleMax);
-}
-// ----- End sources helpers -----
 
 export default function Home() {
   const [sessionId] = useState(() => crypto.randomUUID());
@@ -141,12 +117,10 @@ export default function Home() {
   const chatEndRef = useRef<HTMLDivElement | null>(null);
   const hasUserMessage = messages.some((m) => m.role === "user");
 
-  // Auto-scroll chat
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // Load all popular questions
   useEffect(() => {
     async function loadPopularQuestions() {
       try {
@@ -163,8 +137,8 @@ export default function Home() {
       } catch (err) {
         console.error("Error loading popular questions:", err);
         const fallback = [
-          "What is the time limit for a master’s degree?",
-          "How many thesis credits must a master’s student enroll in?",
+          "What is the time limit for a master's degree?",
+          "How many thesis credits must a master's student enroll in?",
           "Are Ph.D. students assigned a guidance committee?",
           "How many courses are required for a graduate certificate program?",
         ];
@@ -176,7 +150,6 @@ export default function Home() {
     loadPopularQuestions();
   }, []);
 
-  // Cycle through random sets every 15 seconds with fade effect
   useEffect(() => {
     if (allQuestions.length <= 4) return;
     const interval = setInterval(() => {
@@ -189,20 +162,13 @@ export default function Home() {
     return () => clearInterval(interval);
   }, [allQuestions]);
 
-  // Helper to pick N random unique questions
   function getRandomQuestions(arr: string[], n: number): string[] {
     const shuffled = [...arr].sort(() => 0.5 - Math.random());
     return shuffled.slice(0, n);
   }
 
-  // Send a user message
-  const sendMessage = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!input.trim()) return;
-
-    setMessages((prev) => [...prev, { role: "user", content: input }]);
-    const userInput = input;
-    setInput("");
+  const sendMessage = async (userInput: string) => {
+    setMessages((prev) => [...prev, { role: "user", content: userInput }]);
 
     try {
       const res = await fetch(CHAT_API_URL, {
@@ -215,56 +181,56 @@ export default function Home() {
       });
       if (!res.ok) throw new Error("API error");
       const data = await res.json();
-      setMessages((prev) => [
-        ...prev,
-        { role: "bot", content: data.answer, sources: data.sources },
-      ]);
-    } catch {
+      
+      console.log("API Response:", data); // Debug log
+      
       setMessages((prev) => [
         ...prev,
         {
           role: "bot",
-          content:
-            "Sorry, there was an error connecting to the chatbot API.",
+          content: data.answer,
+          sources: data.sources,
+          hasAlternative: data.has_alternative || false,
+          alternativeAnswer: data.alternative_answer,
+          alternativeSources: data.alternative_sources,
+          answerMode: data.answer_mode,
+          goldSimilarity: data.gold_similarity,
+          selectedVersion: "primary"
+        },
+      ]);
+    } catch (err) {
+      console.error("API Error:", err);
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "bot",
+          content: "Sorry, there was an error connecting to the chatbot API.",
           sources: [],
         },
       ]);
     }
   };
 
-  // When a suggested question is clicked
-  const handleCardClick = async (q: string) => {
-    setMessages((prev) => [...prev, { role: "user", content: q }]);
-    try {
-      const res = await fetch(CHAT_API_URL, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-Session-Id": sessionId,
-        },
-        body: JSON.stringify({ message: q }),
-      });
-      if (!res.ok) throw new Error("API error");
-      const data = await res.json();
-      setMessages((prev) => [
-        ...prev,
-        { role: "bot", content: data.answer, sources: data.sources },
-      ]);
-    } catch {
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: "bot",
-          content:
-            "Sorry, there was an error connecting to the chatbot API.",
-          sources: [],
-        },
-      ]);
-    }
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!input.trim()) return;
+    const userInput = input;
+    setInput("");
+    sendMessage(userInput);
+  };
+
+  const handleCardClick = (q: string) => {
+    sendMessage(q);
+  };
+
+  const handleVersionSelect = (messageIndex: number, version: "primary" | "alternative") => {
+    setMessages(prev => prev.map((msg, idx) => 
+      idx === messageIndex ? { ...msg, selectedVersion: version } : msg
+    ));
   };
 
   return (
-  <main className="min-h-screen h-screen flex flex-col bg-[var(--unh-white)]">
+    <main className="min-h-screen h-screen flex flex-col bg-[var(--unh-white)]">
       <header
         className="bg-[var(--unh-blue)] px-8 py-2 text-center shadow-md flex-none"
         style={{ color: "#fff", zIndex: 20, position: "relative" }}
@@ -291,7 +257,6 @@ export default function Home() {
         </div>
       </header>
 
-      {/* Middle content area: suggestions or chat messages */}
       <div className="flex-1 flex flex-col items-center overflow-hidden min-h-0">
         {!hasUserMessage ? (
           <div className="flex-1 flex items-center justify-center w-full min-h-0 overflow-hidden">
@@ -323,112 +288,107 @@ export default function Home() {
           </div>
         ) : (
           <div className="w-2/3 flex flex-col h-full">
-            {/* Main scrollable chat/questions area */}
-            <div
-              className="flex-1 overflow-y-auto overflow-x-hidden px-4 py-2"
-              style={{ wordBreak: "break-word" }}
-            >
+            <div className="flex-1 overflow-y-auto overflow-x-hidden px-4 py-2">
               {messages.map((msg, i) => {
-              const isRoleChange =
-                i > 0 && messages[i - 1].role !== msg.role;
-              if (msg.role === "user") {
-                return (
-                  <div
-                    key={i}
-                    className={`flex justify-end items-end mb-2${
-                      i === messages.length - 1 ? " mb-6" : ""
-                    }`}
-                    style={isRoleChange ? { marginTop: "1rem" } : {}}
-                  >
+                const isRoleChange = i > 0 && messages[i - 1].role !== msg.role;
+                
+                if (msg.role === "user") {
+                  return (
                     <div
-                      className="bg-[var(--unh-blue)] text-[var(--unh-white)] rounded-2xl break-words whitespace-pre-line m-1 px-6 py-4 text-lg md:text-xl max-w-[800px] w-fit block box-border"
-                      style={{ boxShadow: "0 4px 12px rgba(0,0,0,0.2)" }}
+                      key={i}
+                      className={`flex justify-end items-end mb-2${
+                        i === messages.length - 1 ? " mb-6" : ""
+                      }`}
+                      style={isRoleChange ? { marginTop: "1rem" } : {}}
                     >
-                      {msg.content}
-                    </div>
-                    <div className="flex-shrink-0 w-10 h-10 ml-2 mb-1">
-                      <div className="w-10 h-10 bg-[var(--unh-blue)] rounded-full flex items-center justify-center">
-                        <img src="/student.svg" alt="User" className="w-6 h-6" />
+                      <div className="bg-[var(--unh-blue)] text-[var(--unh-white)] rounded-2xl px-6 py-4 text-lg md:text-xl max-w-[800px] shadow-lg">
+                        {msg.content}
+                      </div>
+                      <div className="flex-shrink-0 w-10 h-10 ml-2 mb-1">
+                        <div className="w-10 h-10 bg-[var(--unh-blue)] rounded-full flex items-center justify-center">
+                          <img src="/student.svg" alt="User" className="w-6 h-6" />
+                        </div>
                       </div>
                     </div>
-                  </div>
-                );
-              } else {
-                return (
-                  <div
-                    key={i}
-                    className={`flex justify-start items-end mb-2${
-                      i === messages.length - 1 ? " mb-6" : ""
-                    }`}
-                    style={isRoleChange ? { marginTop: "1rem" } : {}}
-                  >
-                    <div className="flex-shrink-0 w-10 h-10 mr-2 mb-1">
-                      <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-md">
-                        <img src="/mascot.svg" alt="Bot" className="w-8 h-8" />
+                  );
+                } else {
+                  const showDual = msg.hasAlternative && msg.alternativeAnswer;
+                  const selectedVersion = msg.selectedVersion || "primary";
+                  
+                  return (
+                    <div
+                      key={i}
+                      className={`flex justify-start items-start mb-2${
+                        i === messages.length - 1 ? " mb-6" : ""
+                      }`}
+                      style={isRoleChange ? { marginTop: "1rem" } : {}}
+                    >
+                      <div className="flex-shrink-0 w-10 h-10 mr-2 mt-1">
+                        <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-md">
+                          <img src="/mascot.svg" alt="Bot" className="w-8 h-8" />
+                        </div>
                       </div>
-                    </div>
-                    <div className="bg-[var(--unh-light-gray)] text-black rounded-2xl break-words whitespace-pre-line m-1 px-6 py-4 text-lg md:text-xl max-w-[800px] w-fit block box-border shadow-md">
-                      {/* >>> CHANGED: render bot text as HTML so links are clickable */}
-                      <div
-                        dangerouslySetInnerHTML={{ __html: linkify(msg.content) }}
-                      />
-                      {/* <<< CHANGED */}
-                      {Array.isArray(msg.sources) && msg.sources.length > 0 && (() => {
-                        const { visible, hidden } = processSources(msg.sources, VISIBLE_SOURCE_CAP);
-                        return (
-                          <div className="mt-4">
-                            <div className="font-semibold text-sm mb-1">
-                              Sources:
+                      
+                      <div className="max-w-[800px] w-full">
+                        {showDual ? (
+                          <div className="space-y-2">
+                            <div className="text-sm text-gray-600 mb-2 px-2 font-medium">
+                              Multiple answers available:
                             </div>
-                            <ul className="list-disc list-inside text-sm text-gray-700">
-                              {visible.map((s, idx) => (
-                                <li key={`vis-${idx}`}>
-                                  {s.url ? (
-                                    <a
-                                      href={s.url}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="underline text-blue-700"
-                                    >
-                                      {s.label}
-                                    </a>
-                                  ) : (
-                                    s.label
-                                  )}
-                                </li>
-                              ))}
-                            </ul>
-
-                            {hidden.length > 0 && (
-                              <details className="mt-1">
-                                <summary className="cursor-pointer text-sm">More sources ({hidden.length})</summary>
-                                <ul className="list-disc list-inside text-sm text-gray-700 mt-1">
-                                  {hidden.map((s, idx) => (
-                                    <li key={`hid-${idx}`}>
-                                      {s.url ? (
-                                        <a
-                                          href={s.url}
-                                          target="_blank"
-                                          rel="noopener noreferrer"
-                                          className="underline text-blue-700"
-                                        >
-                                          {s.label}
-                                        </a>
-                                      ) : (
-                                        s.label
-                                      )}
-                                    </li>
-                                  ))}
+                            
+                            <AnswerVersion
+                              answer={msg.content}
+                              sources={msg.sources}
+                              isSelected={selectedVersion === "primary"}
+                              onSelect={() => handleVersionSelect(i, "primary")}
+                              label="Gold Standard Answer"
+                              badge={msg.goldSimilarity ? `${(msg.goldSimilarity * 100).toFixed(0)}% match` : "Verified"}
+                            />
+                            
+                            <AnswerVersion
+                              answer={msg.alternativeAnswer!}
+                              sources={msg.alternativeSources}
+                              isSelected={selectedVersion === "alternative"}
+                              onSelect={() => handleVersionSelect(i, "alternative")}
+                              label="AI-Generated Answer"
+                              badge="Retrieved"
+                            />
+                          </div>
+                        ) : (
+                          <div className="bg-[var(--unh-light-gray)] text-black rounded-2xl px-6 py-4 text-lg md:text-xl shadow-md">
+                            <div dangerouslySetInnerHTML={{ __html: linkify(msg.content) }} />
+                            
+                            {msg.sources && msg.sources.length > 0 && (
+                              <div className="mt-4">
+                                <div className="font-semibold text-sm mb-1">Sources:</div>
+                                <ul className="list-disc list-inside text-sm text-gray-700">
+                                  {msg.sources.map((s, idx) => {
+                                    const match = s.match(/^-\s*(.+?)\s*\(([^)]+)\)$/);
+                                    if (match) {
+                                      return (
+                                        <li key={idx}>
+                                          <a
+                                            href={match[2]}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="underline text-blue-700"
+                                          >
+                                            {match[1]}
+                                          </a>
+                                        </li>
+                                      );
+                                    }
+                                    return <li key={idx}>{s.replace(/^-\s*/, "")}</li>;
+                                  })}
                                 </ul>
-                              </details>
+                              </div>
                             )}
                           </div>
-                        );
-                      })()}
+                        )}
+                      </div>
                     </div>
-                  </div>
-                );
-              }
+                  );
+                }
               })}
               <div ref={chatEndRef} />
             </div>
@@ -436,77 +396,83 @@ export default function Home() {
         )}
       </div>
 
-      {/* Input box and bottom text always visible at bottom, fixed height */}
       <div className="w-full flex flex-col flex-none" style={{ background: 'white', zIndex: 10 }}>
         <div className="w-full px-4">
-          <form onSubmit={sendMessage} className="mx-auto w-2/3 flex gap-2 py-2">
+          <div className="mx-auto w-2/3 flex gap-2 py-2">
             <div className="flex-1 flex items-center">
               <div className="relative w-full flex items-center">
-              <button
-                type="button"
-                onClick={async () => {
-                  setInput("");
-                  setMessages([]);
-                  try {
-                    await fetch("/reset", {
-                      method: "POST",
-                      headers: {
-                        "Content-Type": "application/json",
-                        "X-Session-Id": sessionId,
-                      },
-                    });
-                  } catch (err) {
-                    console.log("Reset signal failed:", err);
-                  }
-                }}
-                className="absolute left-3 top-1/2 -translate-y-1/2 rounded-full p-2 flex items-center justify-center hover:bg-gray-100 transition-colors"
-                aria-label="Clear input"
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  strokeWidth={2}
-                  stroke="currentColor"
-                  className="w-5 h-5 text-gray-600 hover:text-gray-800"
+                <button
+                  type="button"
+                  onClick={async () => {
+                    setInput("");
+                    setMessages([]);
+                    try {
+                      await fetch("/reset", {
+                        method: "POST",
+                        headers: {
+                          "Content-Type": "application/json",
+                          "X-Session-Id": sessionId,
+                        },
+                      });
+                    } catch (err) {
+                      console.log("Reset signal failed:", err);
+                    }
+                  }}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 rounded-full p-2 flex items-center justify-center hover:bg-gray-100 transition-colors z-10"
+                  aria-label="Clear input"
                 >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m-4.991 4.99a8.25 8.25 0 01-1.697 1.697"
-                  />
-                </svg>
-              </button>
-              <input
-                className="w-full rounded-full border-2 border-gray-400 text-black pl-14 pr-24 py-6 text-lg md:text-xl placeholder:text-gray-400 bg-transparent box-border focus:outline-none"
-                type="text"
-                placeholder="Ask questions about programs, courses, and policies"
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-              />
-              <button
-                type="submit"
-                className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full bg-[var(--unh-blue)] p-3 flex items-center justify-center shadow hover:bg-[var(--unh-accent-blue)] transition-colors"
-                aria-label="Send"
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  strokeWidth={2}
-                  stroke="white"
-                  className="w-6 h-6"
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    strokeWidth={2}
+                    stroke="currentColor"
+                    className="w-5 h-5 text-gray-600 hover:text-gray-800"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m-4.991 4.99a8.25 8.25 0 01-1.697 1.697"
+                    />
+                  </svg>
+                </button>
+                <input
+                  className="w-full rounded-full border-2 border-gray-400 text-black pl-14 pr-24 py-6 text-lg md:text-xl placeholder:text-gray-400 bg-transparent box-border focus:outline-none"
+                  type="text"
+                  placeholder="Ask questions about programs, courses, and policies"
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      handleSubmit(e);
+                    }
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={handleSubmit}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full bg-[var(--unh-blue)] p-3 flex items-center justify-center shadow hover:bg-[var(--unh-accent-blue)] transition-colors z-10"
+                  aria-label="Send"
                 >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M5 12h14M12 5l7 7-7 7"
-                  />
-                </svg>
-              </button>
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    strokeWidth={2}
+                    stroke="white"
+                    className="w-6 h-6"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M5 12h14M12 5l7 7-7 7"
+                    />
+                  </svg>
+                </button>
               </div>
             </div>
-          </form>
+          </div>
         </div>
         <div className="w-full px-4 pb-4 text-center text-sm text-gray-500">
           <p className="mx-auto w-2/3 text-lg">
