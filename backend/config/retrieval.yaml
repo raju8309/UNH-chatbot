@@ -77,7 +77,7 @@ retrieval_sizes:
 
 # Query transformation configuration
 query_transformation:
-  enabled: false
+  enabled: true
 
 chunking:
   enable_contextual_headers: true     # prepend section hierarchy to chunks
@@ -112,7 +112,7 @@ beam_search:
   diversity_penalty: 0.3
 
 gold_set:
-  enabled: true
+  enabled: false
   gold_file_path: "../automation_testing/gold.jsonl"
 
   # direct answer feature
