@@ -182,7 +182,7 @@ export default function Home() {
       if (!res.ok) throw new Error("API error");
       const data = await res.json();
       
-      console.log("API Response:", data); // Debug log
+      console.log("API Response:", data);
       
       setMessages((prev) => [
         ...prev,
@@ -195,7 +195,7 @@ export default function Home() {
           alternativeSources: data.alternative_sources,
           answerMode: data.answer_mode,
           goldSimilarity: data.gold_similarity,
-          selectedVersion: "primary"
+          selectedVersion: undefined // No selection initially
         },
       ]);
     } catch (err) {
@@ -223,10 +223,45 @@ export default function Home() {
     sendMessage(q);
   };
 
-  const handleVersionSelect = (messageIndex: number, version: "primary" | "alternative") => {
+  const handleVersionSelect = async (messageIndex: number, version: "primary" | "alternative", answerMode?: string) => {
+    // Get the message being selected
+    const message = messages[messageIndex];
+    
+    // Update UI to show only selected answer
     setMessages(prev => prev.map((msg, idx) => 
       idx === messageIndex ? { ...msg, selectedVersion: version } : msg
     ));
+    
+    // Get the corresponding question (look back for the last user message)
+    let question = "";
+    for (let i = messageIndex - 1; i >= 0; i--) {
+      if (messages[i].role === "user") {
+        question = messages[i].content;
+        break;
+      }
+    }
+    
+    // Log the user's selection with full context
+    try {
+      await fetch('/log-answer-selection', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Session-Id': sessionId,
+        },
+        body: JSON.stringify({
+          selected_version: version,
+          answer_mode: answerMode,
+          timestamp: new Date().toISOString(),
+          question: question,
+          primary_answer: message.content,
+          alternative_answer: message.alternativeAnswer,
+          gold_similarity: message.goldSimilarity
+        }),
+      });
+    } catch (err) {
+      console.error('Failed to log answer selection:', err);
+    }
   };
 
   return (
@@ -313,7 +348,8 @@ export default function Home() {
                   );
                 } else {
                   const showDual = msg.hasAlternative && msg.alternativeAnswer;
-                  const selectedVersion = msg.selectedVersion || "primary";
+                  const selectedVersion = msg.selectedVersion;
+                  const hasSelection = selectedVersion !== undefined;
                   
                   return (
                     <div
@@ -330,29 +366,59 @@ export default function Home() {
                       </div>
                       
                       <div className="max-w-[800px] w-full">
-                        {showDual ? (
+                        {showDual && !hasSelection ? (
                           <div className="space-y-2">
                             <div className="text-sm text-gray-600 mb-2 px-2 font-medium">
-                              Multiple answers available:
+                              Multiple answers available - choose one:
                             </div>
                             
                             <AnswerVersion
                               answer={msg.content}
                               sources={msg.sources}
-                              isSelected={selectedVersion === "primary"}
-                              onSelect={() => handleVersionSelect(i, "primary")}
-                              label="Gold Standard Answer"
-                              badge={msg.goldSimilarity ? `${(msg.goldSimilarity * 100).toFixed(0)}% match` : "Verified"}
+                              isSelected={false}
+                              onSelect={() => handleVersionSelect(i, "primary", msg.answerMode)}
+                              label="Answer 1"
                             />
                             
                             <AnswerVersion
                               answer={msg.alternativeAnswer!}
                               sources={msg.alternativeSources}
-                              isSelected={selectedVersion === "alternative"}
-                              onSelect={() => handleVersionSelect(i, "alternative")}
-                              label="AI-Generated Answer"
-                              badge="Retrieved"
+                              isSelected={false}
+                              onSelect={() => handleVersionSelect(i, "alternative", msg.answerMode)}
+                              label="Answer 2"
                             />
+                          </div>
+                        ) : showDual && hasSelection ? (
+                          <div className="bg-[var(--unh-light-gray)] text-black rounded-2xl px-6 py-4 text-lg md:text-xl shadow-md">
+                            <div dangerouslySetInnerHTML={{ 
+                              __html: linkify(selectedVersion === "primary" ? msg.content : msg.alternativeAnswer!) 
+                            }} />
+                            
+                            {((selectedVersion === "primary" ? msg.sources : msg.alternativeSources) || []).length > 0 && (
+                              <div className="mt-4">
+                                <div className="font-semibold text-sm mb-1">Sources:</div>
+                                <ul className="list-disc list-inside text-sm text-gray-700">
+                                  {(selectedVersion === "primary" ? msg.sources : msg.alternativeSources)!.map((s, idx) => {
+                                    const match = s.match(/^-\s*(.+?)\s*\(([^)]+)\)$/);
+                                    if (match) {
+                                      return (
+                                        <li key={idx}>
+                                          <a
+                                            href={match[2]}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="underline text-blue-700"
+                                          >
+                                            {match[1]}
+                                          </a>
+                                        </li>
+                                      );
+                                    }
+                                    return <li key={idx}>{s.replace(/^-\s*/, "")}</li>;
+                                  })}
+                                </ul>
+                              </div>
+                            )}
                           </div>
                         ) : (
                           <div className="bg-[var(--unh-light-gray)] text-black rounded-2xl px-6 py-4 text-lg md:text-xl shadow-md">
