@@ -79,7 +79,6 @@ retrieval_sizes:
 query_transformation:
   enabled: false
 
-# chunking configuration
 chunking:
   enable_contextual_headers: true     # prepend section hierarchy to chunks
   enable_overlap: false               # disable overlapping (not useful with size=1)
@@ -107,49 +106,51 @@ calendar_linking:
 
 # beam search configuration for answer generation
 beam_search:
-  enabled: false          
-  beam_width: 5           # number of beams to explore
-  num_candidates: 3       # number of candidate answers to generate and score
-  diversity_penalty: 0.3  # encourage diverse outputs (0.0 = no diversity, 1.0 = max diversity)
+  enabled: false
+  beam_width: 5
+  num_candidates: 3
+  diversity_penalty: 0.3
 
 gold_set:
-  # enable/disable gold set features
-  enabled: false  # Disabled to test actual LLM performance
-  
-  # path to gold JSONL file (relative to backend/)
+  enabled: true
   gold_file_path: "../automation_testing/gold.jsonl"
-  
-  # direct answer settings
+
+  # direct answer feature
   enable_direct_answer: true
-  direct_answer_threshold: 0.95  # 95% similarity for direct answers
+  direct_answer_threshold: 0.85
+
+  enable_dual_answers: true
+
+  # boost settings
+  tier_boost: 3.0
+  gold_chunk_boost: 2.5
+  gold_url_boost: 1.5
+  gold_answer_boost: 1.8
+  ensure_gold_in_results: true
+  min_gold_score: 0.3
+  prefer_gold_on_uncertainty: true
 
 enhancements:
-  enabled: false  # master switch for all enhancements - DISABLED: hurts scores by 23%
-  
-  # query Enhancement
+  enabled: false
   query_enhancement:
     enabled: false
     expand_acronyms: true
     boost_key_terms: true
     policy_rewriting: true
-  
-  # re-ranking
+
   reranking:
     enabled: false
-    use_cross_encoder: true  # cross-encoder/ms-marco-MiniLM-L-6-v2
+    use_cross_encoder: true
     use_tfidf: true
     use_metadata: true
     max_candidates_for_cross_encoder: 20
     diversity_threshold: 0.7
-    
-    # score combination weights (should sum to 1.0)
     weights:
-      semantic: 0.25      
-      cross_encoder: 0.45 
-      tfidf: 0.15         
-      metadata: 0.15      
-  
-  # contextual Compression (rule-based)
+      semantic: 0.25
+      cross_encoder: 0.45
+      tfidf: 0.15
+      metadata: 0.15
+
   compression:
     enabled: false
     deduplicate: true
@@ -164,26 +165,21 @@ enhancements:
 performance:
   lazy_load_models: true
   cache_size: 128
-  max_tokens: 200  # Increased from 128 - allow more complete answers with all nuggets
-  use_finetuned_model: false  # Set to true to use fine-tuned model, false for base model
-  
+  max_tokens: 200
+  use_finetuned_model: false
+
   gold_chunk_boost: 2.5
   gold_url_boost: 1.5
   gold_answer_boost: 1.8
-  
-  # ensure at least one gold chunk in results if relevant
+
   ensure_gold_in_results: true
   min_gold_score: 0.3
-  
-  # prefer gold answers when model is uncertain
   prefer_gold_on_uncertainty: true
-  
-  # semantic matching settings
+
   semantic_match:
     enabled: true
     threshold: 0.85
 
-# Synthetic Q&A Generation - improves semantic matching without gold set
 synthetic_qa:
   enabled: true  # Generate Q&A pairs from catalog chunks using LLM
   boost_synthetic_qa: 1.0  # Slight boost for synthetic Q&A chunks (they match queries better)
@@ -228,7 +224,6 @@ hyde:
   hybrid_weight_original: 0.3  # Weight for original query results (if hybrid_mode=true)
   hybrid_weight_hyde: 0.7  # Weight for HyDE results (if hybrid_mode=true)
 
-# gold set statistics
 stats:
   total_entries: 0
   categories: {}
