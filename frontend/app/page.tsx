@@ -33,6 +33,116 @@ function linkify(text: string) {
   return out;
 }
 
+// ----- Sources helpers (limit, numbering, collapse) -----
+type RawSource = { title: string; url?: string };
+type ProcessedSource = RawSource & { label: string };
+const VISIBLE_SOURCE_CAP = 3;
+
+// Parse a single "- Title (url)" or "- Title" line into title/url
+function parseSourceLine(src: string): RawSource {
+  const match = src.match(/^-\s*(.+?)\s*\(([^)]+)\)\s*$/);
+  if (match) {
+    return { title: match[1], url: match[2] };
+  }
+  // Fallback: strip leading "- " if present
+  const clean = src.replace(/^-+\s*/, "").trim();
+  return { title: clean || src };
+}
+
+function splitAndLabel(
+  sources: RawSource[],
+  visibleMax = VISIBLE_SOURCE_CAP
+): { visible: ProcessedSource[]; hidden: ProcessedSource[] } {
+  const visible = sources.slice(0, visibleMax);
+  const hidden = sources.slice(visibleMax);
+
+  // Count duplicates by exact title (case-insensitive)
+  const normalizeTitle = (t: string) => t.trim().replace(/\s+/g, " ").toLowerCase();
+  const titleCounts: Record<string, number> = {};
+  sources.forEach(v => {
+    const key = normalizeTitle(v.title);
+    titleCounts[key] = (titleCounts[key] || 0) + 1;
+  });
+
+  const titleIndex: Record<string, number> = {};
+  const labeledVisible: ProcessedSource[] = visible.map(v => {
+    const key = normalizeTitle(v.title);
+    if (titleCounts[key] > 1) {
+      titleIndex[key] = (titleIndex[key] || 0) + 1;
+      return { ...v, label: `${v.title} (${titleIndex[key]})` };
+    }
+    return { ...v, label: v.title };
+  });
+
+  const processedHidden: ProcessedSource[] = hidden.map(h => {
+    const key = normalizeTitle(h.title);
+    if (titleCounts[key] > 1) {
+      titleIndex[key] = (titleIndex[key] || 0) + 1;
+      return { ...h, label: `${h.title} (${titleIndex[key]})` };
+    }
+    return { ...h, label: h.title };
+  });
+  return { visible: labeledVisible, hidden: processedHidden };
+}
+
+function processSources(rawLines: string[], visibleMax = VISIBLE_SOURCE_CAP) {
+  const parsed: RawSource[] = rawLines.map(parseSourceLine);
+  return splitAndLabel(parsed, visibleMax);
+}
+// ----- End sources helpers -----
+
+function SourcesList({ rawSources }: { rawSources: string[] }) {
+  const { visible, hidden } = processSources(rawSources);
+
+  return (
+    <div className="mt-4">
+      <div className="font-semibold text-sm mb-1">Sources:</div>
+      <ul className="list-disc list-inside text-sm text-gray-700">
+        {visible.map((s, idx) => (
+          <li key={`vis-${idx}`}>
+            {s.url ? (
+              <a
+                href={s.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline text-blue-700"
+              >
+                {s.label}
+              </a>
+            ) : (
+              s.label
+            )}
+          </li>
+        ))}
+      </ul>
+
+      {hidden.length > 0 && (
+        <details className="mt-1">
+          <summary className="cursor-pointer text-sm">More sources ({hidden.length})</summary>
+          <ul className="list-disc list-inside text-sm text-gray-700 mt-1">
+            {hidden.map((s, idx) => (
+              <li key={`hid-${idx}`}>
+                {s.url ? (
+                  <a
+                    href={s.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="underline text-blue-700"
+                  >
+                    {s.label}
+                  </a>
+                ) : (
+                  s.label
+                )}
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
+    </div>
+  );
+}
+
 function AnswerVersion({ 
   answer, 
   sources, 
@@ -79,29 +189,7 @@ function AnswerVersion({
       />
       
       {sources && sources.length > 0 && (
-        <div className="mt-3 pt-3 border-t border-gray-300">
-          <div className="font-semibold text-sm mb-1">Sources:</div>
-          <ul className="list-disc list-inside text-sm text-gray-700">
-            {sources.map((s, idx) => {
-              const match = s.match(/^-\s*(.+?)\s*\(([^)]+)\)$/);
-              if (match) {
-                return (
-                  <li key={idx}>
-                    <a
-                      href={match[2]}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="underline text-blue-700"
-                    >
-                      {match[1]}
-                    </a>
-                  </li>
-                );
-              }
-              return <li key={idx}>{s.replace(/^-\s*/, "")}</li>;
-            })}
-          </ul>
-        </div>
+        <SourcesList rawSources={sources} />
       )}
     </div>
   );
@@ -395,29 +483,7 @@ export default function Home() {
                             }} />
                             
                             {((selectedVersion === "primary" ? msg.sources : msg.alternativeSources) || []).length > 0 && (
-                              <div className="mt-4">
-                                <div className="font-semibold text-sm mb-1">Sources:</div>
-                                <ul className="list-disc list-inside text-sm text-gray-700">
-                                  {(selectedVersion === "primary" ? msg.sources : msg.alternativeSources)!.map((s, idx) => {
-                                    const match = s.match(/^-\s*(.+?)\s*\(([^)]+)\)$/);
-                                    if (match) {
-                                      return (
-                                        <li key={idx}>
-                                          <a
-                                            href={match[2]}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="underline text-blue-700"
-                                          >
-                                            {match[1]}
-                                          </a>
-                                        </li>
-                                      );
-                                    }
-                                    return <li key={idx}>{s.replace(/^-\s*/, "")}</li>;
-                                  })}
-                                </ul>
-                              </div>
+                              <SourcesList rawSources={(selectedVersion === "primary" ? msg.sources : msg.alternativeSources)!} />
                             )}
                           </div>
                         ) : (
@@ -425,29 +491,7 @@ export default function Home() {
                             <div dangerouslySetInnerHTML={{ __html: linkify(msg.content) }} />
                             
                             {msg.sources && msg.sources.length > 0 && (
-                              <div className="mt-4">
-                                <div className="font-semibold text-sm mb-1">Sources:</div>
-                                <ul className="list-disc list-inside text-sm text-gray-700">
-                                  {msg.sources.map((s, idx) => {
-                                    const match = s.match(/^-\s*(.+?)\s*\(([^)]+)\)$/);
-                                    if (match) {
-                                      return (
-                                        <li key={idx}>
-                                          <a
-                                            href={match[2]}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="underline text-blue-700"
-                                          >
-                                            {match[1]}
-                                          </a>
-                                        </li>
-                                      );
-                                    }
-                                    return <li key={idx}>{s.replace(/^-\s*/, "")}</li>;
-                                  })}
-                                </ul>
-                              </div>
+                              <SourcesList rawSources={msg.sources} />
                             )}
                           </div>
                         )}
