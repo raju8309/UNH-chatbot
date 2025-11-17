@@ -17,6 +17,7 @@ def load_retrieval_config() -> None:
         CFG = {}
 
     CFG.setdefault("policy_terms", [])
+    CFG.setdefault("tier_system", {"enabled": True})
     CFG.setdefault("tier_boosts", {0: 3.0, 1: 1.25, 2: 1.10, 3: 1.0, 4: 1.0})
     CFG.setdefault("intent", {
         "course_keywords": [],
@@ -39,6 +40,8 @@ def load_retrieval_config() -> None:
     gold_cfg.setdefault("enable_direct_answer", True)
     gold_cfg.setdefault("direct_answer_threshold", 0.95)
     gold_cfg.setdefault("ensure_gold_in_results", True)
+
+    CFG.setdefault("calendar_linking", {"enabled": True})
 
     POLICY_TERMS = tuple(CFG.get("policy_terms", []))
     print("Configuration loaded")

@@ -1,6 +1,7 @@
 
 import re
 from typing import Optional, Sequence
+from config.settings import get_config
 
 # put the registrar calendar in one place for easy updates
 REGISTRAR_CAL_URL = "https://www.unh.edu/registrar/registration-resources/calendars-important-deadlines"
@@ -65,11 +66,18 @@ def maybe_calendar_fallback(
 ) -> Optional[str]:
     """
     Return a fallback calendar message iff:
+      - calendar linking is enabled in config AND
       - question is calendar-like (dynamic dates) AND
       - the model did NOT produce a clear date AND
       - retrieval didn't already include obviously date-specific sources
     Otherwise return None (keep existing answer).
     """
+    # Check if calendar linking is enabled
+    cfg = get_config()
+    calendar_enabled = cfg.get("calendar_linking", {}).get("enabled", True)
+    if not calendar_enabled:
+        return None
+    
     if not _looks_calendar_like(question):
         return None
     if _answer_has_clear_date(generated_answer):
@@ -81,5 +89,5 @@ def maybe_calendar_fallback(
     return (
         "Dates can vary by year and program. For the most current official dates "
         f"(start/end of term, add/drop, holidays, finals, etc.), please see the "
-        f"Registrar’s Academic Calendar: {REGISTRAR_CAL_URL}"
+        f"Registrar's Academic Calendar: {REGISTRAR_CAL_URL}"
     )

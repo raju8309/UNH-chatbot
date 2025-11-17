@@ -72,12 +72,16 @@ def process_question_for_retrieval(incoming_message):
         incoming_message = " ".join(incoming_message)
     
     # Apply query transformation before intent detection and retrieval
+    cfg = get_config()
+    query_transform_config = cfg.get("query_transformation", {})
     original_query = incoming_message
     user_query = incoming_message
-    transformed_query = transform_query(user_query)
-    if transformed_query != user_query:
-        print(f"[QueryTransform] Original: {user_query} -> Transformed: {transformed_query}")
-    user_query = transformed_query
+    transformed_query = user_query
+    if query_transform_config.get("enabled", True):
+        transformed_query = transform_query(user_query)
+        if transformed_query != user_query:
+            print(f"[QueryTransform] Original: {user_query} -> Transformed: {transformed_query}")
+        user_query = transformed_query
 
     # clarifier backoff: if no effective rewrite happened, build a retrieval-only clarified query
     clarified_query = None
@@ -85,7 +89,6 @@ def process_question_for_retrieval(incoming_message):
         clarified_query = _clarify_for_retrieval(original_query)
 
     # check configuration for dual answer mode
-    cfg = get_config()
     gold_cfg = cfg.get("gold_set", {})
     dual_mode = gold_cfg.get("enable_dual_answers", True)
     
