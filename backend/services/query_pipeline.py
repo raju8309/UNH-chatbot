@@ -187,12 +187,7 @@ def process_question_for_retrieval(incoming_message):
                 answer_mode="gold_only"
             )
     
-    # no high similarity match, proceed with normal retrieval
-    answer, sources, retrieval_path, context = cached_answer_with_path(transformed_query)
-
-
-
-# --- retrieval (single or dual) ---
+    # --- retrieval (single or dual) ---
     if getattr(settings, "RETRIEVAL_USE_DUAL_QUERY", False):
         # Run original (pre-transform) and rewritten (post-transform)
         ans_a, src_a, path_a, ctx_a = cached_answer_with_path(original_query)
@@ -212,20 +207,16 @@ def process_question_for_retrieval(incoming_message):
 
         best_score = float("-inf")
         chosen = None
-        chosen_query = original_query
         for res, q in candidates:
             score = _score_retrieval(res, q)
             if score > best_score:
                 best_score = score
                 chosen = res
-                chosen_query = q
     else:
         # Single-query mode: prefer a clarified query if we have one, otherwise use transformed query
         effective_query = clarified_query or user_query
         ans_b, src_b, path_b, ctx_b = cached_answer_with_path(effective_query)
         chosen = dict(answer=ans_b, sources=src_b, retrieval_path=path_b, context=ctx_b)
-        chosen_query = effective_query
-
 
     return dict(
         answer=chosen["answer"],

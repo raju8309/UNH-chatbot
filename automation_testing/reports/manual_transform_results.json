@@ -1,8 +1,8 @@
 {
   "grad gpa for graduation?": {
     "original": "grad gpa for graduation?",
-    "transformed": "What is the minimum GPA required to earn graduate credit at UNH?",
-    "timestamp": "2025-11-15T22:12:02Z",
+    "transformed": "What is the minimum GPA requirement for graduation?",
+    "timestamp": "2025-11-17T21:10:34Z",
     "kept_tokens_ok": true,
     "forbidden_hit": false,
     "dup_words_fixed": true,
@@ -11,7 +11,7 @@
   "minimum grade for grad credit?": {
     "original": "minimum grade for grad credit?",
     "transformed": "What is the minimum grade required to earn graduate credit at UNH?",
-    "timestamp": "2025-11-15T22:12:05Z",
+    "timestamp": "2025-11-17T21:10:36Z",
     "kept_tokens_ok": true,
     "forbidden_hit": false,
     "dup_words_fixed": true,
@@ -20,7 +20,7 @@
   "final exam attempts masters?": {
     "original": "final exam attempts masters?",
     "transformed": "How many attempts do UNH master’s students have to pass the final exam?",
-    "timestamp": "2025-11-15T22:12:05Z",
+    "timestamp": "2025-11-17T21:10:36Z",
     "kept_tokens_ok": true,
     "forbidden_hit": false,
     "dup_words_fixed": true,
@@ -29,7 +29,7 @@
   "accelerated student below b minus?": {
     "original": "accelerated student below b minus?",
     "transformed": "What happens if an accelerated UNH graduate student earns below a B-?",
-    "timestamp": "2025-11-15T22:12:05Z",
+    "timestamp": "2025-11-17T21:10:36Z",
     "kept_tokens_ok": true,
     "forbidden_hit": false,
     "dup_words_fixed": true,
@@ -37,8 +37,8 @@
   },
   "good academic standing gpa?": {
     "original": "good academic standing gpa?",
-    "transformed": "What is the minimum GPA required to earn graduate credit at UNH?",
-    "timestamp": "2025-11-15T22:12:06Z",
+    "transformed": "What is the minimum GPA requirement for UNH graduate school?",
+    "timestamp": "2025-11-17T21:10:38Z",
     "kept_tokens_ok": true,
     "forbidden_hit": false,
     "dup_words_fixed": true,
@@ -46,17 +46,17 @@
   },
   "probation dismissal rules?": {
     "original": "probation dismissal rules?",
-    "transformed": "academic probation academic dismissal rules?",
-    "timestamp": "2025-11-15T22:12:07Z",
+    "transformed": "What are the rules for dismissal of academic probation?",
+    "timestamp": "2025-11-17T21:10:40Z",
     "kept_tokens_ok": true,
     "forbidden_hit": false,
     "dup_words_fixed": true,
-    "fallback_reason": "rule_fallback"
+    "fallback_reason": ""
   },
   "gpa needed for dual status?": {
     "original": "gpa needed for dual status?",
     "transformed": "What is the minimum GPA requirement for dual status?",
-    "timestamp": "2025-11-15T22:12:08Z",
+    "timestamp": "2025-11-17T21:10:42Z",
     "kept_tokens_ok": true,
     "forbidden_hit": false,
     "dup_words_fixed": true,
@@ -64,8 +64,8 @@
   },
   "graduate school dismissal reasons?": {
     "original": "graduate school dismissal reasons?",
-    "transformed": "What are the academic dismissal reasons for UNH graduate school?",
-    "timestamp": "2025-11-15T22:12:09Z",
+    "transformed": "What are the reasons for dismissal of students at UNH?",
+    "timestamp": "2025-11-17T21:10:44Z",
     "kept_tokens_ok": true,
     "forbidden_hit": false,
     "dup_words_fixed": true,
@@ -74,7 +74,7 @@
   "incomplete grade rules?": {
     "original": "incomplete grade rules?",
     "transformed": "incomplete grade rules?",
-    "timestamp": "2025-11-15T22:12:11Z",
+    "timestamp": "2025-11-17T21:10:46Z",
     "kept_tokens_ok": true,
     "forbidden_hit": false,
     "dup_words_fixed": true,
@@ -82,17 +82,17 @@
   },
   "grading scale grad?": {
     "original": "grading scale grad?",
-    "transformed": "grading scale grad?",
-    "timestamp": "2025-11-15T22:12:12Z",
+    "transformed": "What is the grading level of UNH graduate school?",
+    "timestamp": "2025-11-17T21:10:47Z",
     "kept_tokens_ok": true,
     "forbidden_hit": false,
     "dup_words_fixed": true,
-    "fallback_reason": "rule_fallback"
+    "fallback_reason": ""
   },
   "add drop deadline grad?": {
     "original": "add drop deadline grad?",
-    "transformed": "What is the add/drop deadline for UNH graduate students?",
-    "timestamp": "2025-11-15T22:12:13Z",
+    "transformed": "What is the drop deadline for UNH graduate students?",
+    "timestamp": "2025-11-17T21:10:49Z",
     "kept_tokens_ok": true,
     "forbidden_hit": false,
     "dup_words_fixed": true,
@@ -101,7 +101,7 @@
   "late registration fee?": {
     "original": "late registration fee?",
     "transformed": "What is the late registration fee for UNH graduate students?",
-    "timestamp": "2025-11-15T22:12:13Z",
+    "timestamp": "2025-11-17T21:10:51Z",
     "kept_tokens_ok": true,
     "forbidden_hit": false,
     "dup_words_fixed": true,
@@ -110,7 +110,7 @@
   "leave of absence grad?": {
     "original": "leave of absence grad?",
     "transformed": "What is the leave-of-absence policy for UNH graduate students?",
-    "timestamp": "2025-11-15T22:12:13Z",
+    "timestamp": "2025-11-17T21:10:51Z",
     "kept_tokens_ok": true,
     "forbidden_hit": false,
     "dup_words_fixed": true,
@@ -118,8 +118,8 @@
   },
   "medical withdrawal grad?": {
     "original": "medical withdrawal grad?",
-    "transformed": "What is the medical withdrawal grad?",
-    "timestamp": "2025-11-15T22:12:14Z",
+    "transformed": "What is the medical withdrawal grad for UNH graduate students?",
+    "timestamp": "2025-11-17T21:10:52Z",
     "kept_tokens_ok": true,
     "forbidden_hit": false,
     "dup_words_fixed": true,
@@ -127,17 +127,17 @@
   },
   "continuous enrollment rule?": {
     "original": "continuous enrollment rule?",
-    "transformed": "What is the continuous enrollment rule for UNH graduate students?",
-    "timestamp": "2025-11-15T22:12:15Z",
+    "transformed": "continuous enrollment rule?",
+    "timestamp": "2025-11-17T21:10:54Z",
     "kept_tokens_ok": true,
     "forbidden_hit": false,
     "dup_words_fixed": true,
-    "fallback_reason": ""
+    "fallback_reason": "rule_fallback"
   },
   "full time credit load grad?": {
     "original": "full time credit load grad?",
     "transformed": "What is the full time limit credit load grad?",
-    "timestamp": "2025-11-15T22:12:17Z",
+    "timestamp": "2025-11-17T21:10:55Z",
     "kept_tokens_ok": true,
     "forbidden_hit": false,
     "dup_words_fixed": true,
@@ -145,8 +145,8 @@
   },
   "part time allowed international?": {
     "original": "part time allowed international?",
-    "transformed": "What is the part time limit allowed for international students?",
-    "timestamp": "2025-11-15T22:12:18Z",
+    "transformed": "What is the full time limit allowed for international students?",
+    "timestamp": "2025-11-17T21:10:57Z",
     "kept_tokens_ok": true,
     "forbidden_hit": false,
     "dup_words_fixed": true,
@@ -155,7 +155,7 @@
   "readmission after absence?": {
     "original": "readmission after absence?",
     "transformed": "readmission after absence?",
-    "timestamp": "2025-11-15T22:12:19Z",
+    "timestamp": "2025-11-17T21:10:59Z",
     "kept_tokens_ok": true,
     "forbidden_hit": false,
     "dup_words_fixed": true,
@@ -163,17 +163,17 @@
   },
   "registration hold reasons?": {
     "original": "registration hold reasons?",
-    "transformed": "What are the reasons for registration?",
-    "timestamp": "2025-11-15T22:12:19Z",
+    "transformed": "registration hold reasons?",
+    "timestamp": "2025-11-17T21:11:01Z",
     "kept_tokens_ok": true,
     "forbidden_hit": false,
     "dup_words_fixed": true,
-    "fallback_reason": ""
+    "fallback_reason": "rule_fallback"
   },
   "audit a course grad?": {
     "original": "audit a course grad?",
-    "transformed": "What are the requirements for course auditing a course grad?",
-    "timestamp": "2025-11-15T22:12:20Z",
+    "transformed": "What is the purpose of auditing a course grad?",
+    "timestamp": "2025-11-17T21:11:04Z",
     "kept_tokens_ok": true,
     "forbidden_hit": false,
     "dup_words_fixed": true,
@@ -182,7 +182,7 @@
   "phd time limit?": {
     "original": "phd time limit?",
     "transformed": "What is the time limit for completing a UNH Ph.D. program?",
-    "timestamp": "2025-11-15T22:12:20Z",
+    "timestamp": "2025-11-17T21:11:04Z",
     "kept_tokens_ok": true,
     "forbidden_hit": false,
     "dup_words_fixed": true,
@@ -191,7 +191,7 @@
   "masters time limit?": {
     "original": "masters time limit?",
     "transformed": "What is the time limit for completing a UNH master’s degree?",
-    "timestamp": "2025-11-15T22:12:20Z",
+    "timestamp": "2025-11-17T21:11:04Z",
     "kept_tokens_ok": true,
     "forbidden_hit": false,
     "dup_words_fixed": true,
@@ -199,8 +199,8 @@
   },
   "residency requirement grad?": {
     "original": "residency requirement grad?",
-    "transformed": "What are the residency requirements for UNH graduate school?",
-    "timestamp": "2025-11-15T22:12:21Z",
+    "transformed": "What is the residency requirement at UNH?",
+    "timestamp": "2025-11-17T21:11:05Z",
     "kept_tokens_ok": true,
     "forbidden_hit": false,
     "dup_words_fixed": true,
@@ -209,7 +209,7 @@
   "thesis vs non thesis?": {
     "original": "thesis vs non thesis?",
     "transformed": "What is the difference between thesis and non-thesis options in UNH graduate programs?",
-    "timestamp": "2025-11-15T22:12:21Z",
+    "timestamp": "2025-11-17T21:11:05Z",
     "kept_tokens_ok": true,
     "forbidden_hit": false,
     "dup_words_fixed": true,
@@ -217,8 +217,8 @@
   },
   "comprehensive exam required?": {
     "original": "comprehensive exam required?",
-    "transformed": "What is the comprehensive exam required for UNH graduate courses?",
-    "timestamp": "2025-11-15T22:12:22Z",
+    "transformed": "What is required for the comprehensive exam?",
+    "timestamp": "2025-11-17T21:11:07Z",
     "kept_tokens_ok": true,
     "forbidden_hit": false,
     "dup_words_fixed": true,
@@ -227,16 +227,16 @@
   "capstone requirement?": {
     "original": "capstone requirement?",
     "transformed": "capstone requirement?",
-    "timestamp": "2025-11-15T22:12:23Z",
+    "timestamp": "2025-11-17T21:11:08Z",
     "kept_tokens_ok": true,
     "forbidden_hit": false,
     "dup_words_fixed": true,
-    "fallback_reason": "length_out_of_range"
+    "fallback_reason": "rule_fallback"
   },
   "candidacy deadline phd?": {
     "original": "candidacy deadline phd?",
     "transformed": "What is the deadline for the Ph.D. program?",
-    "timestamp": "2025-11-15T22:12:24Z",
+    "timestamp": "2025-11-17T21:11:10Z",
     "kept_tokens_ok": true,
     "forbidden_hit": false,
     "dup_words_fixed": true,
@@ -245,7 +245,7 @@
   "form committee when?": {
     "original": "form committee when?",
     "transformed": "When does the UNH graduate school form committee?",
-    "timestamp": "2025-11-15T22:12:25Z",
+    "timestamp": "2025-11-17T21:11:12Z",
     "kept_tokens_ok": true,
     "forbidden_hit": false,
     "dup_words_fixed": true,
@@ -253,8 +253,8 @@
   },
   "graduation application deadline?": {
     "original": "graduation application deadline?",
-    "transformed": "What are the deadlines for graduation applications at UNH?",
-    "timestamp": "2025-11-15T22:12:26Z",
+    "transformed": "What is the deadline for applying for UNH graduate school?",
+    "timestamp": "2025-11-17T21:11:13Z",
     "kept_tokens_ok": true,
     "forbidden_hit": false,
     "dup_words_fixed": true,
@@ -262,8 +262,8 @@
   },
   "degree certification process?": {
     "original": "degree certification process?",
-    "transformed": "What is the degree certification process for UNH graduate courses?",
-    "timestamp": "2025-11-15T22:12:26Z",
+    "transformed": "What is the process for completing the degree certification process?",
+    "timestamp": "2025-11-17T21:11:15Z",
     "kept_tokens_ok": true,
     "forbidden_hit": false,
     "dup_words_fixed": true,
@@ -272,7 +272,7 @@
   "transfer credit rules?": {
     "original": "transfer credit rules?",
     "transformed": "What is the transfer of graduate credits credit rules?",
-    "timestamp": "2025-11-15T22:12:27Z",
+    "timestamp": "2025-11-17T21:11:18Z",
     "kept_tokens_ok": true,
     "forbidden_hit": false,
     "dup_words_fixed": true,
@@ -280,8 +280,8 @@
   },
   "max transfer credits?": {
     "original": "max transfer credits?",
-    "transformed": "What is the maximum number of transfer credits allowed in a UNH graduate program?",
-    "timestamp": "2025-11-15T22:12:28Z",
+    "transformed": "What is the maximum amount of transfer credits allowed in a UNH graduate program?",
+    "timestamp": "2025-11-17T21:11:20Z",
     "kept_tokens_ok": true,
     "forbidden_hit": false,
     "dup_words_fixed": true,
@@ -290,7 +290,7 @@
   "transfer from other university?": {
     "original": "transfer from other university?",
     "transformed": "What is the transfer of graduate credits from other university?",
-    "timestamp": "2025-11-15T22:12:29Z",
+    "timestamp": "2025-11-17T21:11:22Z",
     "kept_tokens_ok": true,
     "forbidden_hit": false,
     "dup_words_fixed": true,
@@ -298,17 +298,17 @@
   },
   "certificate credits into masters?": {
     "original": "certificate credits into masters?",
-    "transformed": "What is the minimum amount of certificate credits in a master’s program?",
-    "timestamp": "2025-11-15T22:12:30Z",
-    "kept_tokens_ok": true,
+    "transformed": "What is the name of the master’s program?",
+    "timestamp": "2025-11-17T21:11:24Z",
+    "kept_tokens_ok": false,
     "forbidden_hit": false,
     "dup_words_fixed": true,
-    "fallback_reason": ""
+    "fallback_reason": "lost_tokens"
   },
   "course waiver possible?": {
     "original": "course waiver possible?",
-    "transformed": "What is the course waiver available for UNH graduate courses?",
-    "timestamp": "2025-11-15T22:12:31Z",
+    "transformed": "What is the course waiver available for UNH graduate students?",
+    "timestamp": "2025-11-17T21:11:26Z",
     "kept_tokens_ok": true,
     "forbidden_hit": false,
     "dup_words_fixed": true,
@@ -316,8 +316,8 @@
   },
   "double counting undergrad grad?": {
     "original": "double counting undergrad grad?",
-    "transformed": "What are the requirements for double-counting undergrad grads at UNH?",
-    "timestamp": "2025-11-15T22:12:33Z",
+    "transformed": "What is a double-counting undergrad grad?",
+    "timestamp": "2025-11-17T21:11:28Z",
     "kept_tokens_ok": true,
     "forbidden_hit": false,
     "dup_words_fixed": true,
@@ -325,17 +325,17 @@
   },
   "external coursework approval?": {
     "original": "external coursework approval?",
-    "transformed": "external coursework approval?",
-    "timestamp": "2025-11-15T22:12:33Z",
+    "transformed": "What is the purpose of external coursework approval?",
+    "timestamp": "2025-11-17T21:11:30Z",
     "kept_tokens_ok": true,
     "forbidden_hit": false,
     "dup_words_fixed": true,
-    "fallback_reason": "rule_fallback"
+    "fallback_reason": ""
   },
   "transfer grade requirement?": {
     "original": "transfer grade requirement?",
-    "transformed": "What is the transfer of graduate credits grade requirement?",
-    "timestamp": "2025-11-15T22:12:34Z",
+    "transformed": "What is the transfer of credits grade requirement for UNH graduate school?",
+    "timestamp": "2025-11-17T21:11:32Z",
     "kept_tokens_ok": true,
     "forbidden_hit": false,
     "dup_words_fixed": true,
@@ -343,8 +343,8 @@
   },
   "taking courses elsewhere?": {
     "original": "taking courses elsewhere?",
-    "transformed": "What is taking courses elsewhere?",
-    "timestamp": "2025-11-15T22:12:35Z",
+    "transformed": "What is the purpose of taking courses elsewhere?",
+    "timestamp": "2025-11-17T21:11:33Z",
     "kept_tokens_ok": true,
     "forbidden_hit": false,
     "dup_words_fixed": true,
@@ -353,7 +353,7 @@
   "transfer limit phd?": {
     "original": "transfer limit phd?",
     "transformed": "transfer of graduate credits limit Ph.D. program?",
-    "timestamp": "2025-11-15T22:12:36Z",
+    "timestamp": "2025-11-17T21:11:34Z",
     "kept_tokens_ok": true,
     "forbidden_hit": false,
     "dup_words_fixed": true,
@@ -362,7 +362,7 @@
   "english proficiency requirement grad?": {
     "original": "english proficiency requirement grad?",
     "transformed": "What is the English proficiency requirement at UNH?",
-    "timestamp": "2025-11-15T22:12:37Z",
+    "timestamp": "2025-11-17T21:11:36Z",
     "kept_tokens_ok": true,
     "forbidden_hit": false,
     "dup_words_fixed": true,
@@ -371,7 +371,7 @@
   "visa full time credits?": {
     "original": "visa full time credits?",
     "transformed": "visa full time limit credits?",
-    "timestamp": "2025-11-15T22:12:38Z",
+    "timestamp": "2025-11-17T21:11:38Z",
     "kept_tokens_ok": true,
     "forbidden_hit": false,
     "dup_words_fixed": true,
@@ -380,7 +380,7 @@
   "is hybrid allowed international?": {
     "original": "is hybrid allowed international?",
     "transformed": "is hybrid allowed international?",
-    "timestamp": "2025-11-15T22:12:39Z",
+    "timestamp": "2025-11-17T21:11:40Z",
     "kept_tokens_ok": true,
     "forbidden_hit": false,
     "dup_words_fixed": true,
@@ -388,26 +388,26 @@
   },
   "online course limit visa?": {
     "original": "online course limit visa?",
-    "transformed": "Is online course limit visa required for UNH graduate school?",
-    "timestamp": "2025-11-15T22:12:40Z",
+    "transformed": "online course limit visa?",
+    "timestamp": "2025-11-17T21:11:42Z",
     "kept_tokens_ok": true,
     "forbidden_hit": false,
     "dup_words_fixed": true,
-    "fallback_reason": ""
+    "fallback_reason": "rule_fallback"
   },
   "international student health insurance?": {
     "original": "international student health insurance?",
-    "transformed": "What are the requirements for international student health insurance?",
-    "timestamp": "2025-11-15T22:12:41Z",
+    "transformed": "international student health insurance?",
+    "timestamp": "2025-11-17T21:11:44Z",
     "kept_tokens_ok": true,
     "forbidden_hit": false,
     "dup_words_fixed": true,
-    "fallback_reason": ""
+    "fallback_reason": "rule_fallback"
   },
   "sevis reporting requirement?": {
     "original": "sevis reporting requirement?",
     "transformed": "sevis reporting requirement?",
-    "timestamp": "2025-11-15T22:12:41Z",
+    "timestamp": "2025-11-17T21:11:45Z",
     "kept_tokens_ok": true,
     "forbidden_hit": false,
     "dup_words_fixed": true,
@@ -416,7 +416,7 @@
   "ta eligibility international?": {
     "original": "ta eligibility international?",
     "transformed": "ta eligibility international?",
-    "timestamp": "2025-11-15T22:12:42Z",
+    "timestamp": "2025-11-17T21:11:47Z",
     "kept_tokens_ok": true,
     "forbidden_hit": false,
     "dup_words_fixed": true,
@@ -424,35 +424,35 @@
   },
   "travel during semester?": {
     "original": "travel during semester?",
-    "transformed": "What are the requirements for travel during semester?",
-    "timestamp": "2025-11-15T22:12:43Z",
+    "transformed": "travel during semester?",
+    "timestamp": "2025-11-17T21:11:49Z",
     "kept_tokens_ok": true,
     "forbidden_hit": false,
     "dup_words_fixed": true,
-    "fallback_reason": ""
+    "fallback_reason": "rule_fallback"
   },
   "ra ta tuition waiver?": {
     "original": "ra ta tuition waiver?",
-    "transformed": "Does UNH RA and TA positions include a tuition waiver for graduate students?",
-    "timestamp": "2025-11-15T22:12:44Z",
+    "transformed": "ra ta tuition waiver?",
+    "timestamp": "2025-11-17T21:11:51Z",
     "kept_tokens_ok": true,
     "forbidden_hit": false,
     "dup_words_fixed": true,
-    "fallback_reason": ""
+    "fallback_reason": "rule_fallback"
   },
   "assistantship eligibility grad?": {
     "original": "assistantship eligibility grad?",
-    "transformed": "What are the eligibility requirements for graduate assistantships at UNH?",
-    "timestamp": "2025-11-15T22:12:45Z",
+    "transformed": "assistantship eligibility grad?",
+    "timestamp": "2025-11-17T21:11:53Z",
     "kept_tokens_ok": true,
     "forbidden_hit": false,
     "dup_words_fixed": true,
-    "fallback_reason": ""
+    "fallback_reason": "rule_fallback"
   },
   "minimum credits for assistantship?": {
     "original": "minimum credits for assistantship?",
     "transformed": "What are the minimum credits for assistantships at UNH?",
-    "timestamp": "2025-11-15T22:12:46Z",
+    "timestamp": "2025-11-17T21:11:55Z",
     "kept_tokens_ok": true,
     "forbidden_hit": false,
     "dup_words_fixed": true,
@@ -461,7 +461,7 @@
   "academic load for stipend?": {
     "original": "academic load for stipend?",
     "transformed": "What is the academic load for stipend?",
-    "timestamp": "2025-11-15T22:12:47Z",
+    "timestamp": "2025-11-17T21:11:57Z",
     "kept_tokens_ok": true,
     "forbidden_hit": false,
     "dup_words_fixed": true,
@@ -469,17 +469,17 @@
   },
   "fee waiver rules?": {
     "original": "fee waiver rules?",
-    "transformed": "fee waiver rules?",
-    "timestamp": "2025-11-15T22:12:48Z",
+    "transformed": "What is the fee waiver rules for UNH graduate school?",
+    "timestamp": "2025-11-17T21:11:59Z",
     "kept_tokens_ok": true,
     "forbidden_hit": false,
     "dup_words_fixed": true,
-    "fallback_reason": "rule_fallback"
+    "fallback_reason": ""
   },
   "summer assistantship allowed?": {
     "original": "summer assistantship allowed?",
     "transformed": "What are the requirements for summer assistantships at UNH?",
-    "timestamp": "2025-11-15T22:12:49Z",
+    "timestamp": "2025-11-17T21:12:01Z",
     "kept_tokens_ok": true,
     "forbidden_hit": false,
     "dup_words_fixed": true,
@@ -487,17 +487,17 @@
   },
   "in state tuition eligibility?": {
     "original": "in state tuition eligibility?",
-    "transformed": "in state tuition eligibility?",
-    "timestamp": "2025-11-15T22:12:50Z",
+    "transformed": "What is the state tuition eligibility for UNH graduate school?",
+    "timestamp": "2025-11-17T21:12:02Z",
     "kept_tokens_ok": true,
     "forbidden_hit": false,
     "dup_words_fixed": true,
-    "fallback_reason": "rule_fallback"
+    "fallback_reason": ""
   },
   "what is grad 900?": {
     "original": "what is grad 900?",
     "transformed": "what is grad 900?",
-    "timestamp": "2025-11-15T22:12:51Z",
+    "timestamp": "2025-11-17T21:12:04Z",
     "kept_tokens_ok": true,
     "forbidden_hit": false,
     "dup_words_fixed": true,
@@ -506,7 +506,7 @@
   "independent study credits?": {
     "original": "independent study credits?",
     "transformed": "How many independent study credits can count toward a UNH graduate degree?",
-    "timestamp": "2025-11-15T22:12:52Z",
+    "timestamp": "2025-11-17T21:12:06Z",
     "kept_tokens_ok": true,
     "forbidden_hit": false,
     "dup_words_fixed": true,
@@ -515,7 +515,7 @@
   "gta training requirement?": {
     "original": "gta training requirement?",
     "transformed": "What is the gta training requirement?",
-    "timestamp": "2025-11-15T22:12:53Z",
+    "timestamp": "2025-11-17T21:12:08Z",
     "kept_tokens_ok": true,
     "forbidden_hit": false,
     "dup_words_fixed": true,
@@ -523,8 +523,8 @@
   },
   "internship credits allowed?": {
     "original": "internship credits allowed?",
-    "transformed": "How many internship credits can count toward a UNH graduate degree?",
-    "timestamp": "2025-11-15T22:12:55Z",
+    "transformed": "How many internship credits can be counted toward a UNH graduate degree?",
+    "timestamp": "2025-11-17T21:12:10Z",
     "kept_tokens_ok": true,
     "forbidden_hit": false,
     "dup_words_fixed": true,
@@ -533,7 +533,7 @@
   "jterm credits count?": {
     "original": "jterm credits count?",
     "transformed": "jterm credits count?",
-    "timestamp": "2025-11-15T22:12:56Z",
+    "timestamp": "2025-11-17T21:12:12Z",
     "kept_tokens_ok": true,
     "forbidden_hit": false,
     "dup_words_fixed": true,
@@ -541,17 +541,17 @@
   },
   "biotech ms total credits?": {
     "original": "biotech ms total credits?",
-    "transformed": "Biotechnology: Industrial and Biomedical Sciences (M.S) ms total credits?",
-    "timestamp": "2025-11-15T22:12:57Z",
+    "transformed": "What is the total credits for Biotechnology: Industrial and Biomedical Sciences (M.S.)?",
+    "timestamp": "2025-11-17T21:12:15Z",
     "kept_tokens_ok": true,
     "forbidden_hit": false,
     "dup_words_fixed": true,
-    "fallback_reason": "rule_fallback"
+    "fallback_reason": ""
   },
   "biotech core credits?": {
     "original": "biotech core credits?",
     "transformed": "How many core credits are required for the UNH Biotechnology: Industrial and Biomedical Sciences (M.S.) program?",
-    "timestamp": "2025-11-15T22:12:59Z",
+    "timestamp": "2025-11-17T21:12:18Z",
     "kept_tokens_ok": true,
     "forbidden_hit": false,
     "dup_words_fixed": true,
@@ -559,26 +559,26 @@
   },
   "biotech elective credits?": {
     "original": "biotech elective credits?",
-    "transformed": "What elective credits are required for the UNH Biotechnology: Industrial and Biomedical Sciences (M.S.) program?",
-    "timestamp": "2025-11-15T22:13:01Z",
+    "transformed": "Biotechnology: Industrial and Biomedical Sciences (M.S) elective credits?",
+    "timestamp": "2025-11-17T21:12:20Z",
     "kept_tokens_ok": true,
     "forbidden_hit": false,
     "dup_words_fixed": true,
-    "fallback_reason": ""
+    "fallback_reason": "rule_fallback"
   },
   "capstone credits biotech?": {
     "original": "capstone credits biotech?",
-    "transformed": "How many credits are required for the UNH Biotechnology: Industrial and Biomedical Sciences (M.S) program?",
-    "timestamp": "2025-11-15T22:13:03Z",
+    "transformed": "capstone requirement credits Biotechnology: Industrial and Biomedical Sciences (M.S)?",
+    "timestamp": "2025-11-17T21:12:23Z",
     "kept_tokens_ok": true,
     "forbidden_hit": false,
     "dup_words_fixed": true,
-    "fallback_reason": ""
+    "fallback_reason": "rule_fallback"
   },
   "biotech capstone start after 9 credits?": {
     "original": "biotech capstone start after 9 credits?",
     "transformed": "Biotechnology: Industrial and Biomedical Sciences (M.S) capstone requirement start after 9 credits?",
-    "timestamp": "2025-11-15T22:13:04Z",
+    "timestamp": "2025-11-17T21:12:26Z",
     "kept_tokens_ok": true,
     "forbidden_hit": false,
     "dup_words_fixed": true,
@@ -586,8 +586,8 @@
   },
   "purpose of biotech core?": {
     "original": "purpose of biotech core?",
-    "transformed": "What is the purpose of Biotechnology: Industrial and Biomedical Sciences (M.S) core?",
-    "timestamp": "2025-11-15T22:13:06Z",
+    "transformed": "What is the purpose of Biotechnology: Industrial and Biomedical Sciences (M.S.) core?",
+    "timestamp": "2025-11-17T21:12:28Z",
     "kept_tokens_ok": true,
     "forbidden_hit": false,
     "dup_words_fixed": true,
@@ -596,7 +596,7 @@
   "biotech faculty advisor role?": {
     "original": "biotech faculty advisor role?",
     "transformed": "Biotechnology: Industrial and Biomedical Sciences (M.S) faculty advisor role?",
-    "timestamp": "2025-11-15T22:13:07Z",
+    "timestamp": "2025-11-17T21:12:30Z",
     "kept_tokens_ok": true,
     "forbidden_hit": false,
     "dup_words_fixed": true,
@@ -605,7 +605,7 @@
   "cybersecurity ms location?": {
     "original": "cybersecurity ms location?",
     "transformed": "Cybersecurity Engineering (M.S) ms location?",
-    "timestamp": "2025-11-15T22:13:08Z",
+    "timestamp": "2025-11-17T21:12:32Z",
     "kept_tokens_ok": true,
     "forbidden_hit": false,
     "dup_words_fixed": true,
@@ -614,7 +614,7 @@
   "cybersecurity ms designed for?": {
     "original": "cybersecurity ms designed for?",
     "transformed": "Cybersecurity Engineering (M.S) ms designed for?",
-    "timestamp": "2025-11-15T22:13:09Z",
+    "timestamp": "2025-11-17T21:12:34Z",
     "kept_tokens_ok": true,
     "forbidden_hit": false,
     "dup_words_fixed": true,
@@ -622,8 +622,8 @@
   },
   "cybersecurity learning modes?": {
     "original": "cybersecurity learning modes?",
-    "transformed": "What learning modes are available in the UNH Cybersecurity Engineering (M.S) program?",
-    "timestamp": "2025-11-15T22:13:10Z",
+    "transformed": "What are the learning modes of the UNH Cybersecurity Engineering (M.S.) program?",
+    "timestamp": "2025-11-17T21:12:36Z",
     "kept_tokens_ok": true,
     "forbidden_hit": false,
     "dup_words_fixed": true,
@@ -632,7 +632,7 @@
   "it ms internship required?": {
     "original": "it ms internship required?",
     "transformed": "What is required for the UNH Information Technology (M.S) program?",
-    "timestamp": "2025-11-15T22:13:11Z",
+    "timestamp": "2025-11-17T21:12:38Z",
     "kept_tokens_ok": true,
     "forbidden_hit": false,
     "dup_words_fixed": true,
@@ -640,8 +640,8 @@
   },
   "it ms core credits?": {
     "original": "it ms core credits?",
-    "transformed": "How many core credits are required for the UNH Information Technology (M.S) program?",
-    "timestamp": "2025-11-15T22:13:13Z",
+    "transformed": "What are the core credits for the UNH Information Technology (M.S.) program?",
+    "timestamp": "2025-11-17T21:12:41Z",
     "kept_tokens_ok": true,
     "forbidden_hit": false,
     "dup_words_fixed": true,

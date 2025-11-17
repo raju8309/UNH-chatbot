@@ -1,73 +1,73 @@
 original,transformed,timestamp,kept_tokens_ok,forbidden_hit,dup_words_fixed,fallback_reason
-grad gpa for graduation?,What is the minimum GPA required to earn graduate credit at UNH?,2025-11-15T22:12:02Z,True,False,True,
-minimum grade for grad credit?,What is the minimum grade required to earn graduate credit at UNH?,2025-11-15T22:12:05Z,True,False,True,
-final exam attempts masters?,How many attempts do UNH master’s students have to pass the final exam?,2025-11-15T22:12:05Z,True,False,True,
-accelerated student below b minus?,What happens if an accelerated UNH graduate student earns below a B-?,2025-11-15T22:12:05Z,True,False,True,
-good academic standing gpa?,What is the minimum GPA required to earn graduate credit at UNH?,2025-11-15T22:12:06Z,True,False,True,
-probation dismissal rules?,academic probation academic dismissal rules?,2025-11-15T22:12:07Z,True,False,True,rule_fallback
-gpa needed for dual status?,What is the minimum GPA requirement for dual status?,2025-11-15T22:12:08Z,True,False,True,
-graduate school dismissal reasons?,What are the academic dismissal reasons for UNH graduate school?,2025-11-15T22:12:09Z,True,False,True,
-incomplete grade rules?,incomplete grade rules?,2025-11-15T22:12:11Z,True,False,True,rule_fallback
-grading scale grad?,grading scale grad?,2025-11-15T22:12:12Z,True,False,True,rule_fallback
-add drop deadline grad?,What is the add/drop deadline for UNH graduate students?,2025-11-15T22:12:13Z,True,False,True,
-late registration fee?,What is the late registration fee for UNH graduate students?,2025-11-15T22:12:13Z,True,False,True,
-leave of absence grad?,What is the leave-of-absence policy for UNH graduate students?,2025-11-15T22:12:13Z,True,False,True,
-medical withdrawal grad?,What is the medical withdrawal grad?,2025-11-15T22:12:14Z,True,False,True,
-continuous enrollment rule?,What is the continuous enrollment rule for UNH graduate students?,2025-11-15T22:12:15Z,True,False,True,
-full time credit load grad?,What is the full time limit credit load grad?,2025-11-15T22:12:17Z,True,False,True,
-part time allowed international?,What is the part time limit allowed for international students?,2025-11-15T22:12:18Z,True,False,True,
-readmission after absence?,readmission after absence?,2025-11-15T22:12:19Z,True,False,True,rule_fallback
-registration hold reasons?,What are the reasons for registration?,2025-11-15T22:12:19Z,True,False,True,
-audit a course grad?,What are the requirements for course auditing a course grad?,2025-11-15T22:12:20Z,True,False,True,
-phd time limit?,What is the time limit for completing a UNH Ph.D. program?,2025-11-15T22:12:20Z,True,False,True,
-masters time limit?,What is the time limit for completing a UNH master’s degree?,2025-11-15T22:12:20Z,True,False,True,
-residency requirement grad?,What are the residency requirements for UNH graduate school?,2025-11-15T22:12:21Z,True,False,True,
-thesis vs non thesis?,What is the difference between thesis and non-thesis options in UNH graduate programs?,2025-11-15T22:12:21Z,True,False,True,
-comprehensive exam required?,What is the comprehensive exam required for UNH graduate courses?,2025-11-15T22:12:22Z,True,False,True,
-capstone requirement?,capstone requirement?,2025-11-15T22:12:23Z,True,False,True,length_out_of_range
-candidacy deadline phd?,What is the deadline for the Ph.D. program?,2025-11-15T22:12:24Z,True,False,True,
-form committee when?,When does the UNH graduate school form committee?,2025-11-15T22:12:25Z,True,False,True,
-graduation application deadline?,What are the deadlines for graduation applications at UNH?,2025-11-15T22:12:26Z,True,False,True,
-degree certification process?,What is the degree certification process for UNH graduate courses?,2025-11-15T22:12:26Z,True,False,True,
-transfer credit rules?,What is the transfer of graduate credits credit rules?,2025-11-15T22:12:27Z,True,False,True,
-max transfer credits?,What is the maximum number of transfer credits allowed in a UNH graduate program?,2025-11-15T22:12:28Z,True,False,True,
-transfer from other university?,What is the transfer of graduate credits from other university?,2025-11-15T22:12:29Z,True,False,True,
-certificate credits into masters?,What is the minimum amount of certificate credits in a master’s program?,2025-11-15T22:12:30Z,True,False,True,
-course waiver possible?,What is the course waiver available for UNH graduate courses?,2025-11-15T22:12:31Z,True,False,True,
-double counting undergrad grad?,What are the requirements for double-counting undergrad grads at UNH?,2025-11-15T22:12:33Z,True,False,True,
-external coursework approval?,external coursework approval?,2025-11-15T22:12:33Z,True,False,True,rule_fallback
-transfer grade requirement?,What is the transfer of graduate credits grade requirement?,2025-11-15T22:12:34Z,True,False,True,
-taking courses elsewhere?,What is taking courses elsewhere?,2025-11-15T22:12:35Z,True,False,True,
-transfer limit phd?,transfer of graduate credits limit Ph.D. program?,2025-11-15T22:12:36Z,True,False,True,rule_fallback
-english proficiency requirement grad?,What is the English proficiency requirement at UNH?,2025-11-15T22:12:37Z,True,False,True,
-visa full time credits?,visa full time limit credits?,2025-11-15T22:12:38Z,True,False,True,rule_fallback
-is hybrid allowed international?,is hybrid allowed international?,2025-11-15T22:12:39Z,True,False,True,rule_fallback
-online course limit visa?,Is online course limit visa required for UNH graduate school?,2025-11-15T22:12:40Z,True,False,True,
-international student health insurance?,What are the requirements for international student health insurance?,2025-11-15T22:12:41Z,True,False,True,
-sevis reporting requirement?,sevis reporting requirement?,2025-11-15T22:12:41Z,True,False,True,rule_fallback
-ta eligibility international?,ta eligibility international?,2025-11-15T22:12:42Z,True,False,True,rule_fallback
-travel during semester?,What are the requirements for travel during semester?,2025-11-15T22:12:43Z,True,False,True,
-ra ta tuition waiver?,Does UNH RA and TA positions include a tuition waiver for graduate students?,2025-11-15T22:12:44Z,True,False,True,
-assistantship eligibility grad?,What are the eligibility requirements for graduate assistantships at UNH?,2025-11-15T22:12:45Z,True,False,True,
-minimum credits for assistantship?,What are the minimum credits for assistantships at UNH?,2025-11-15T22:12:46Z,True,False,True,
-academic load for stipend?,What is the academic load for stipend?,2025-11-15T22:12:47Z,True,False,True,
-fee waiver rules?,fee waiver rules?,2025-11-15T22:12:48Z,True,False,True,rule_fallback
-summer assistantship allowed?,What are the requirements for summer assistantships at UNH?,2025-11-15T22:12:49Z,True,False,True,
-in state tuition eligibility?,in state tuition eligibility?,2025-11-15T22:12:50Z,True,False,True,rule_fallback
-what is grad 900?,what is grad 900?,2025-11-15T22:12:51Z,True,False,True,rule_fallback
-independent study credits?,How many independent study credits can count toward a UNH graduate degree?,2025-11-15T22:12:52Z,True,False,True,
-gta training requirement?,What is the gta training requirement?,2025-11-15T22:12:53Z,True,False,True,
-internship credits allowed?,How many internship credits can count toward a UNH graduate degree?,2025-11-15T22:12:55Z,True,False,True,
-jterm credits count?,jterm credits count?,2025-11-15T22:12:56Z,True,False,True,rule_fallback
-biotech ms total credits?,Biotechnology: Industrial and Biomedical Sciences (M.S) ms total credits?,2025-11-15T22:12:57Z,True,False,True,rule_fallback
-biotech core credits?,How many core credits are required for the UNH Biotechnology: Industrial and Biomedical Sciences (M.S.) program?,2025-11-15T22:12:59Z,True,False,True,
-biotech elective credits?,What elective credits are required for the UNH Biotechnology: Industrial and Biomedical Sciences (M.S.) program?,2025-11-15T22:13:01Z,True,False,True,
-capstone credits biotech?,How many credits are required for the UNH Biotechnology: Industrial and Biomedical Sciences (M.S) program?,2025-11-15T22:13:03Z,True,False,True,
-biotech capstone start after 9 credits?,Biotechnology: Industrial and Biomedical Sciences (M.S) capstone requirement start after 9 credits?,2025-11-15T22:13:04Z,True,False,True,rule_fallback
-purpose of biotech core?,What is the purpose of Biotechnology: Industrial and Biomedical Sciences (M.S) core?,2025-11-15T22:13:06Z,True,False,True,
-biotech faculty advisor role?,Biotechnology: Industrial and Biomedical Sciences (M.S) faculty advisor role?,2025-11-15T22:13:07Z,True,False,True,rule_fallback
-cybersecurity ms location?,Cybersecurity Engineering (M.S) ms location?,2025-11-15T22:13:08Z,True,False,True,rule_fallback
-cybersecurity ms designed for?,Cybersecurity Engineering (M.S) ms designed for?,2025-11-15T22:13:09Z,True,False,True,rule_fallback
-cybersecurity learning modes?,What learning modes are available in the UNH Cybersecurity Engineering (M.S) program?,2025-11-15T22:13:10Z,True,False,True,
-it ms internship required?,What is required for the UNH Information Technology (M.S) program?,2025-11-15T22:13:11Z,True,False,True,
-it ms core credits?,How many core credits are required for the UNH Information Technology (M.S) program?,2025-11-15T22:13:13Z,True,False,True,
+grad gpa for graduation?,What is the minimum GPA requirement for graduation?,2025-11-17T21:10:34Z,True,False,True,
+minimum grade for grad credit?,What is the minimum grade required to earn graduate credit at UNH?,2025-11-17T21:10:36Z,True,False,True,
+final exam attempts masters?,How many attempts do UNH master’s students have to pass the final exam?,2025-11-17T21:10:36Z,True,False,True,
+accelerated student below b minus?,What happens if an accelerated UNH graduate student earns below a B-?,2025-11-17T21:10:36Z,True,False,True,
+good academic standing gpa?,What is the minimum GPA requirement for UNH graduate school?,2025-11-17T21:10:38Z,True,False,True,
+probation dismissal rules?,What are the rules for dismissal of academic probation?,2025-11-17T21:10:40Z,True,False,True,
+gpa needed for dual status?,What is the minimum GPA requirement for dual status?,2025-11-17T21:10:42Z,True,False,True,
+graduate school dismissal reasons?,What are the reasons for dismissal of students at UNH?,2025-11-17T21:10:44Z,True,False,True,
+incomplete grade rules?,incomplete grade rules?,2025-11-17T21:10:46Z,True,False,True,rule_fallback
+grading scale grad?,What is the grading level of UNH graduate school?,2025-11-17T21:10:47Z,True,False,True,
+add drop deadline grad?,What is the drop deadline for UNH graduate students?,2025-11-17T21:10:49Z,True,False,True,
+late registration fee?,What is the late registration fee for UNH graduate students?,2025-11-17T21:10:51Z,True,False,True,
+leave of absence grad?,What is the leave-of-absence policy for UNH graduate students?,2025-11-17T21:10:51Z,True,False,True,
+medical withdrawal grad?,What is the medical withdrawal grad for UNH graduate students?,2025-11-17T21:10:52Z,True,False,True,
+continuous enrollment rule?,continuous enrollment rule?,2025-11-17T21:10:54Z,True,False,True,rule_fallback
+full time credit load grad?,What is the full time limit credit load grad?,2025-11-17T21:10:55Z,True,False,True,
+part time allowed international?,What is the full time limit allowed for international students?,2025-11-17T21:10:57Z,True,False,True,
+readmission after absence?,readmission after absence?,2025-11-17T21:10:59Z,True,False,True,rule_fallback
+registration hold reasons?,registration hold reasons?,2025-11-17T21:11:01Z,True,False,True,rule_fallback
+audit a course grad?,What is the purpose of auditing a course grad?,2025-11-17T21:11:04Z,True,False,True,
+phd time limit?,What is the time limit for completing a UNH Ph.D. program?,2025-11-17T21:11:04Z,True,False,True,
+masters time limit?,What is the time limit for completing a UNH master’s degree?,2025-11-17T21:11:04Z,True,False,True,
+residency requirement grad?,What is the residency requirement at UNH?,2025-11-17T21:11:05Z,True,False,True,
+thesis vs non thesis?,What is the difference between thesis and non-thesis options in UNH graduate programs?,2025-11-17T21:11:05Z,True,False,True,
+comprehensive exam required?,What is required for the comprehensive exam?,2025-11-17T21:11:07Z,True,False,True,
+capstone requirement?,capstone requirement?,2025-11-17T21:11:08Z,True,False,True,rule_fallback
+candidacy deadline phd?,What is the deadline for the Ph.D. program?,2025-11-17T21:11:10Z,True,False,True,
+form committee when?,When does the UNH graduate school form committee?,2025-11-17T21:11:12Z,True,False,True,
+graduation application deadline?,What is the deadline for applying for UNH graduate school?,2025-11-17T21:11:13Z,True,False,True,
+degree certification process?,What is the process for completing the degree certification process?,2025-11-17T21:11:15Z,True,False,True,
+transfer credit rules?,What is the transfer of graduate credits credit rules?,2025-11-17T21:11:18Z,True,False,True,
+max transfer credits?,What is the maximum amount of transfer credits allowed in a UNH graduate program?,2025-11-17T21:11:20Z,True,False,True,
+transfer from other university?,What is the transfer of graduate credits from other university?,2025-11-17T21:11:22Z,True,False,True,
+certificate credits into masters?,What is the name of the master’s program?,2025-11-17T21:11:24Z,False,False,True,lost_tokens
+course waiver possible?,What is the course waiver available for UNH graduate students?,2025-11-17T21:11:26Z,True,False,True,
+double counting undergrad grad?,What is a double-counting undergrad grad?,2025-11-17T21:11:28Z,True,False,True,
+external coursework approval?,What is the purpose of external coursework approval?,2025-11-17T21:11:30Z,True,False,True,
+transfer grade requirement?,What is the transfer of credits grade requirement for UNH graduate school?,2025-11-17T21:11:32Z,True,False,True,
+taking courses elsewhere?,What is the purpose of taking courses elsewhere?,2025-11-17T21:11:33Z,True,False,True,
+transfer limit phd?,transfer of graduate credits limit Ph.D. program?,2025-11-17T21:11:34Z,True,False,True,rule_fallback
+english proficiency requirement grad?,What is the English proficiency requirement at UNH?,2025-11-17T21:11:36Z,True,False,True,
+visa full time credits?,visa full time limit credits?,2025-11-17T21:11:38Z,True,False,True,rule_fallback
+is hybrid allowed international?,is hybrid allowed international?,2025-11-17T21:11:40Z,True,False,True,rule_fallback
+online course limit visa?,online course limit visa?,2025-11-17T21:11:42Z,True,False,True,rule_fallback
+international student health insurance?,international student health insurance?,2025-11-17T21:11:44Z,True,False,True,rule_fallback
+sevis reporting requirement?,sevis reporting requirement?,2025-11-17T21:11:45Z,True,False,True,rule_fallback
+ta eligibility international?,ta eligibility international?,2025-11-17T21:11:47Z,True,False,True,rule_fallback
+travel during semester?,travel during semester?,2025-11-17T21:11:49Z,True,False,True,rule_fallback
+ra ta tuition waiver?,ra ta tuition waiver?,2025-11-17T21:11:51Z,True,False,True,rule_fallback
+assistantship eligibility grad?,assistantship eligibility grad?,2025-11-17T21:11:53Z,True,False,True,rule_fallback
+minimum credits for assistantship?,What are the minimum credits for assistantships at UNH?,2025-11-17T21:11:55Z,True,False,True,
+academic load for stipend?,What is the academic load for stipend?,2025-11-17T21:11:57Z,True,False,True,
+fee waiver rules?,What is the fee waiver rules for UNH graduate school?,2025-11-17T21:11:59Z,True,False,True,
+summer assistantship allowed?,What are the requirements for summer assistantships at UNH?,2025-11-17T21:12:01Z,True,False,True,
+in state tuition eligibility?,What is the state tuition eligibility for UNH graduate school?,2025-11-17T21:12:02Z,True,False,True,
+what is grad 900?,what is grad 900?,2025-11-17T21:12:04Z,True,False,True,rule_fallback
+independent study credits?,How many independent study credits can count toward a UNH graduate degree?,2025-11-17T21:12:06Z,True,False,True,
+gta training requirement?,What is the gta training requirement?,2025-11-17T21:12:08Z,True,False,True,
+internship credits allowed?,How many internship credits can be counted toward a UNH graduate degree?,2025-11-17T21:12:10Z,True,False,True,
+jterm credits count?,jterm credits count?,2025-11-17T21:12:12Z,True,False,True,rule_fallback
+biotech ms total credits?,What is the total credits for Biotechnology: Industrial and Biomedical Sciences (M.S.)?,2025-11-17T21:12:15Z,True,False,True,
+biotech core credits?,How many core credits are required for the UNH Biotechnology: Industrial and Biomedical Sciences (M.S.) program?,2025-11-17T21:12:18Z,True,False,True,
+biotech elective credits?,Biotechnology: Industrial and Biomedical Sciences (M.S) elective credits?,2025-11-17T21:12:20Z,True,False,True,rule_fallback
+capstone credits biotech?,capstone requirement credits Biotechnology: Industrial and Biomedical Sciences (M.S)?,2025-11-17T21:12:23Z,True,False,True,rule_fallback
+biotech capstone start after 9 credits?,Biotechnology: Industrial and Biomedical Sciences (M.S) capstone requirement start after 9 credits?,2025-11-17T21:12:26Z,True,False,True,rule_fallback
+purpose of biotech core?,What is the purpose of Biotechnology: Industrial and Biomedical Sciences (M.S.) core?,2025-11-17T21:12:28Z,True,False,True,
+biotech faculty advisor role?,Biotechnology: Industrial and Biomedical Sciences (M.S) faculty advisor role?,2025-11-17T21:12:30Z,True,False,True,rule_fallback
+cybersecurity ms location?,Cybersecurity Engineering (M.S) ms location?,2025-11-17T21:12:32Z,True,False,True,rule_fallback
+cybersecurity ms designed for?,Cybersecurity Engineering (M.S) ms designed for?,2025-11-17T21:12:34Z,True,False,True,rule_fallback
+cybersecurity learning modes?,What are the learning modes of the UNH Cybersecurity Engineering (M.S.) program?,2025-11-17T21:12:36Z,True,False,True,
+it ms internship required?,What is required for the UNH Information Technology (M.S) program?,2025-11-17T21:12:38Z,True,False,True,
+it ms core credits?,What are the core credits for the UNH Information Technology (M.S.) program?,2025-11-17T21:12:41Z,True,False,True,
