@@ -96,9 +96,13 @@ def load_json_file(path: str) -> None:
     new_texts: List[str] = []
     new_sources: List[Dict[str, Any]] = []
     new_meta: List[Dict[str, Any]] = []
+    seen_chunks: set = set()  # Track seen chunks to avoid duplicates
+    duplicates_skipped = 0
     
     def add_chunk_with_context(text: str, title: str, url: str) -> None:
         """Add a chunk with contextual header prepended."""
+        nonlocal duplicates_skipped
+        
         # Only add if at least 3 words and either contains sentence-ending punctuation or is long enough
         word_count = len(text.split())
         has_sentence_punct = any(p in text for p in ".!?")
@@ -108,9 +112,6 @@ def load_json_file(path: str) -> None:
             enable_headers = cfg.get("chunking", {}).get("enable_contextual_headers", True)
             if enable_headers:
                 # Title simplification: remove redundant repetitions while keeping context
-                # e.g., "A - A - A" -> "A"
-                # e.g., "A - B - C" -> "A - B - C" (keep full path)
-                # e.g., "A - B - B" -> "A - B"
                 parts = [p.strip() for p in title.split(" - ")]
                 # Remove consecutive duplicates
                 simplified_parts = []
@@ -121,6 +122,15 @@ def load_json_file(path: str) -> None:
                 contextual_chunk = f"{section_name}\n\n{text}"
             else:
                 contextual_chunk = text
+            
+            # Deduplicate: Check if we've seen this exact chunk before
+            # Use normalized text (lowercase, stripped) as key
+            chunk_key = contextual_chunk.lower().strip()
+            if chunk_key in seen_chunks:
+                duplicates_skipped += 1
+                return
+            
+            seen_chunks.add(chunk_key)
             new_texts.append(contextual_chunk)
             src = {"title": title, "url": url}
             new_sources.append(src)
@@ -133,13 +143,6 @@ def load_json_file(path: str) -> None:
     def create_overlapping_chunks(items: List[str], title: str, url: str, chunk_size: int = 3, overlap: int = 1) -> None:
         """
         Create overlapping chunks from a list of text items.
-        
-        Args:
-            items: List of text items (sentences, paragraphs, or list items)
-            title: Section title for context
-            url: Source URL
-            chunk_size: Number of items per chunk
-            overlap: Number of items to overlap between chunks
         """
         if not items:
             return
@@ -196,9 +199,7 @@ def load_json_file(path: str) -> None:
                     for text in valid_texts:
                         add_chunk(text, full_title, url)
         
-        # process lists (filter out short navigational items)
-                        add_chunk(stripped, full_title, url)
-
+        # process lists
         lists = section.get("lists", [])
         if lists:
             for list_group in lists:
@@ -224,8 +225,6 @@ def load_json_file(path: str) -> None:
                                 add_chunk(item, full_title, url)
         
         # process subsections recursively
-                                add_chunk(stripped, full_title, url)
-
         subsections = section.get("subsections", [])
         if subsections:
             for subsection in subsections:
@@ -265,6 +264,8 @@ def load_json_file(path: str) -> None:
         if chunks_embeddings is not None:
             CHUNK_NORMS = np.linalg.norm(chunks_embeddings, axis=1)
         print(f"Loaded {len(new_texts)} chunks from {path}")
+        if duplicates_skipped > 0:
+            print(f"  Skipped {duplicates_skipped} duplicate chunks")
     else:
         print(f"WARNING: No text found in {path}")
     print(f"[loader] Pages parsed: {page_count}")
@@ -294,10 +295,10 @@ def load_initial_data() -> None:
             from services.synthetic_qa_service import get_qa_generator
             qa_gen = get_qa_generator()
             
-            # Create Q&A versions of existing chunks
-            original_chunks = list(zip(chunk_texts, chunk_meta))
+            # Create Q&A versions of existing chunks (pass sources too)
+            original_chunks = list(zip(chunk_texts, chunk_meta, chunk_sources))
             augmented = qa_gen.augment_chunks_with_qa(
-                [(text, meta) for text, meta in zip(chunk_texts, chunk_meta)]
+                [(text, meta, source) for text, meta, source in zip(chunk_texts, chunk_meta, chunk_sources)]
             )
             
             # Extract the NEW synthetic chunks (skip originals)
@@ -305,9 +306,9 @@ def load_initial_data() -> None:
             
             if synthetic_chunks:
                 embed_model = get_embed_model()
-                new_texts = [text for text, _ in synthetic_chunks]
-                new_meta = [meta for _, meta in synthetic_chunks]
-                new_sources = [chunk_sources[i % len(chunk_sources)] for i in range(len(synthetic_chunks))]
+                new_texts = [text for text, _, _ in synthetic_chunks]
+                new_meta = [meta for _, meta, _ in synthetic_chunks]
+                new_sources = [source for _, _, source in synthetic_chunks]
                 
                 # Embed synthetic chunks
                 new_embeds = embed_model.encode(new_texts, convert_to_numpy=True)
@@ -343,8 +344,12 @@ def load_initial_data() -> None:
 
         for doc in gold_docs:
             gold_texts.append(doc.page_content)
+            
+            # Use the friendly title from metadata instead of "Gold Q&A: id"
+            title = doc.metadata.get('title', 'Graduate Catalog Information')
+            
             source = {
-                "title": f"Gold Q&A: {doc.metadata.get('gold_id', 'unknown')}",
+                "title": title,  # Use friendly title
                 "url": doc.metadata.get('url', ''),
             }
             gold_sources.append(source)
@@ -354,10 +359,11 @@ def load_initial_data() -> None:
                 "tier_name": "gold_set",
                 "is_program_page": False,
                 "level": "graduate",
-                "section": doc.metadata.get('gold_id', ''),
+                "section": doc.metadata.get('category', ''),
                 "is_gold": True,
                 "original_query": doc.metadata.get('original_query', ''),
-                "gold_passages": doc.metadata.get('gold_passages', [])
+                "gold_passages": doc.metadata.get('gold_passages', []),
+                "gold_id": doc.metadata.get('gold_id', '')  # Keep gold_id for internal tracking
             }
             gold_meta.append(meta)
 
@@ -374,7 +380,7 @@ def load_initial_data() -> None:
 
         CHUNK_NORMS = np.linalg.norm(chunks_embeddings, axis=1)
 
-        print(f"Added {len(gold_docs)} gold chunks (Tier 0)")
+        print(f"Added {len(gold_docs)} gold chunks (Tier 0) with friendly titles")
         print(f"Total chunks now: {len(chunk_texts)}")
 
     build_program_index(chunk_sources, chunk_meta)
@@ -384,6 +390,8 @@ def load_initial_data() -> None:
     print(f"Total gold entries: {stats['total_entries']}")
     print(f"Categories: {stats['categories']}")
     print(f"Has embeddings: {stats['has_embeddings']}")
+    print(f"Direct answer enabled: {stats.get('direct_answer_enabled', False)}")
+    print(f"Direct answer threshold: {stats.get('direct_answer_threshold', 0.85)}")
 
     print("\n=== Chunk Distribution by Tier ===")
     tier_counts = get_tier_counts()

@@ -90,6 +90,7 @@ async def get_test_results():
                                     'id': pred_id,
                                     'category': pred_id.split(':')[0],
                                     'query': gold_item['query'],
+                                    'transformed_query': pred.get('transformed_query'),
                                     'model_answer': pred['model_answer'],
                                     'reference_answer': gold_item['reference_answer'],
                                     'nuggets': gold_item['nuggets'],

@@ -49,7 +49,6 @@ def _extract_best_credits(chunks):
             return text, meta, match.group(1)
     return None
 
-
 def _wrap_sources_with_text_fragments(
     sources_with_passages: List[Tuple[str, Dict]],
     question: str
@@ -316,23 +315,16 @@ def build_citations(question, chunks: List[Tuple[str, Dict]], retrieval_path: Li
             continue
         seen.add(key)
 
-        # check if gold-boosted
-        is_gold = False
-        if i < len(retrieval_path):
-            path_entry = retrieval_path[i]
-            is_gold = path_entry.get("is_gold", False)
-
-        # clean title — remove "Gold Q&A:" or any ID suffix
+        # Get the title - it's already clean from the source
         title = src.get("title", "Source")
-        title = re.sub(r"^Gold Q&A:\s*", "", title)
-        title = re.sub(r"[:\-]\s*q\d+$", "", title)
-        title = title.strip()
+        
+        # No need to check for gold or strip prefixes - titles are already clean
+        # from the gold_set_service.get_gold_documents() method
+        
+        # Build the citation line
+        line = f"- {title}"
 
-        # build the line
-        prefix = "- " if is_gold else "- "
-        line = f"{prefix}{title}"
-
-        # add link if present
+        # Add link if present
         if src.get("url"):
             line += f" ({src['url']})"
 

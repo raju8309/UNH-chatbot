@@ -1,70 +1,72 @@
-{"id": 1, "query": "what is failing"}
-{"id": 2, "query": "pass/fail allowed?"}
-{"id": 3, "query": "good standing gpa"}
-{"id": 4, "query": "probation vs dismissal"}
-{"id": 5, "query": "incomplete grade rules"}
-{"id": 6, "query": "repeat course policy"}
-{"id": 7, "query": "minimum credits to be full time"}
-{"id": 8, "query": "audit option?"}
-{"id": 9, "query": "time limit masters"}
-{"id": 10, "query": "how long for phd"}
-{"id": 11, "query": "leave of absence grad school"}
-{"id": 12, "query": "continuous enrollment?"}
-{"id": 13, "query": "candidacy deadline phd"}
-{"id": 14, "query": "max years after coursework"}
-{"id": 15, "query": "transfer from other uni"}
-{"id": 16, "query": "can i transfer credits"}
-{"id": 17, "query": "waiver for core course"}
-{"id": 18, "query": "double counting undergrad grad"}
-{"id": 19, "query": "certificate credits into masters"}
-{"id": 20, "query": "capstone?"}
-{"id": 21, "query": "thesis vs non thesis"}
-{"id": 22, "query": "comps required?"}
-{"id": 23, "query": "residency requirement"}
-{"id": 24, "query": "part time enrollment"}
-{"id": 25, "query": "max credits per term"}
-{"id": 26, "query": "overload permission"}
-{"id": 27, "query": "add/drop deadline grad"}
-{"id": 28, "query": "tuition waiver ra/ta"}
-{"id": 29, "query": "late registration fee"}
-{"id": 30, "query": "english proficiency reqs grad"}
-{"id": 31, "query": "visa full time credits"}
-{"id": 32, "query": "fail grade?"}
-{"id": 33, "query": "transfr crdts limit"}
-{"id": 34, "query": "can i take p/f in masters"}
-{"id": 35, "query": "Phd time limit"}
-{"id": 36, "query": "academic probation vs dismissal"}
-{"id": 37, "query": "repeat course policy for grad students"}
-{"id": 38, "query": "thesis or non-thesis option for masters"}
-{"id": 39, "query": "leave of absence policy for graduate students"}
-{"id": 40, "query": "CR grade option?"}
-{"id": 41, "query": "AU grade?"}
-{"id": 42, "query": "guidance committee"}
-{"id": 43, "query": "full time status"}
-{"id": 44, "query": "master’s program requirements"}
-{"id": 45, "query": "total credits for the Biotechnology: Industrial and Biomedical Sciences (M.S.) program"}
-{"id": 46, "query": "laboratory skills will students develop in the Biotechnology: Industrial and Biomedical Sciences (M.S.) program?"}
-{"id": 47, "query": "core courses in the Biotechnology: Industrial and Biomedical Sciences (M.S.) program"}
-{"id": 48, "query": "elective options in the Biotechnology: Industrial and Biomedical Sciences (M.S.) program"}
-{"id": 49, "query": "research opportunities in the Biotechnology: Industrial and Biomedical Sciences (M.S.) program"}
-{"id": 50, "query": "capstone experience in the Biotechnology: Industrial and Biomedical Sciences (M.S.) program"}
-{"id": 51, "query": "Which campus hosts the Cybersecurity Engineering (M.S.) program"}
-{"id": 52, "query": "What is the duration of the Cybersecurity Engineering (M.S.) program?"}
-{"id": 53, "query": "How many total credits are required for the Cybersecurity Engineering (M.S.) program?"}
-{"id": 54, "query": "What core courses are included in the Cybersecurity Engineering (M.S.) program?"}
-{"id": 55, "query": "What elective options are available in the Cybersecurity Engineering (M.S.) program?"}
-{"id": 56, "query": "Are there research opportunities in the Cybersecurity Engineering (M.S.) program?"}
-{"id": 57, "query": "Is there a capstone project or thesis requirement in the Cybersecurity Engineering (M.S.) program?"}
-{"id": 58, "query": "information technology (M.S.) total credits required"}
-{"id": 59, "query": "How many core credits are required in the Information Technology (M.S.) program?"}
-{"id": 60, "query": "What completion options are listed for the Information Technology (M.S.) program?"}
-{"id": 61, "query": "How is the Master’s Project Option structured in the Information Technology (M.S.) program?"}
-{"id": 62, "query": "How is the Master’s Thesis Option structured in the Information Technology (M.S.) program?"}
-{"id": 63, "query": "How many thesis credits are required in the information technology (M.S.) Thesis Option?"}
-{"id": 64, "query": "How many credits are allocated for the Master’s Project in the information technology (M.S.) program?"}
-{"id": 65, "query": "Does the information technology (M.S.) program require an internship?"}
-{"id": 66, "query": "When can students begin the internship in the information technology (M.S.) program?"}
-{"id": 69, "query": "Does the Information Technology (M.S.) offer flexibility for part-time students?"}
-{"id": 72, "query": "What does each credit represent in the Information Technology (M.S.) program?"}
-{"id": 73, "query": "What kind of graduate program is the Information Technology (M.S.) at UNH Manchester?"}
-{"id": 74, "query": "Which campus hosts the Information Technology (M.S.) program"}
+{"id": 1, "query": "grad gpa for graduation?"}
+{"id": 2, "query": "minimum grade for grad credit?"}
+{"id": 3, "query": "final exam attempts masters?"}
+{"id": 4, "query": "accelerated student below b minus?"}
+{"id": 5, "query": "good academic standing gpa?"}
+{"id": 6, "query": "probation dismissal rules?"}
+{"id": 7, "query": "gpa needed for dual status?"}
+{"id": 8, "query": "graduate school dismissal reasons?"}
+{"id": 9, "query": "incomplete grade rules?"}
+{"id": 10, "query": "grading scale grad?"}
+{"id": 11, "query": "add drop deadline grad?"}
+{"id": 12, "query": "late registration fee?"}
+{"id": 13, "query": "leave of absence grad?"}
+{"id": 14, "query": "medical withdrawal grad?"}
+{"id": 15, "query": "continuous enrollment rule?"}
+{"id": 16, "query": "full time credit load grad?"}
+{"id": 17, "query": "part time allowed international?"}
+{"id": 18, "query": "readmission after absence?"}
+{"id": 19, "query": "registration hold reasons?"}
+{"id": 20, "query": "audit a course grad?"}
+{"id": 21, "query": "phd time limit?"}
+{"id": 22, "query": "masters time limit?"}
+{"id": 23, "query": "residency requirement grad?"}
+{"id": 24, "query": "thesis vs non thesis?"}
+{"id": 25, "query": "comprehensive exam required?"}
+{"id": 26, "query": "capstone requirement?"}
+{"id": 27, "query": "candidacy deadline phd?"}
+{"id": 28, "query": "form committee when?"}
+{"id": 29, "query": "graduation application deadline?"}
+{"id": 30, "query": "degree certification process?"}
+{"id": 31, "query": "transfer credit rules?"}
+{"id": 32, "query": "max transfer credits?"}
+{"id": 33, "query": "transfer from other university?"}
+{"id": 34, "query": "certificate credits into masters?"}
+{"id": 35, "query": "course waiver possible?"}
+{"id": 36, "query": "double counting undergrad grad?"}
+{"id": 37, "query": "external coursework approval?"}
+{"id": 38, "query": "transfer grade requirement?"}
+{"id": 39, "query": "taking courses elsewhere?"}
+{"id": 40, "query": "transfer limit phd?"}
+{"id": 41, "query": "english proficiency requirement grad?"}
+{"id": 42, "query": "visa full time credits?"}
+{"id": 43, "query": "is hybrid allowed international?"}
+{"id": 44, "query": "online course limit visa?"}
+{"id": 45, "query": "international student health insurance?"}
+{"id": 46, "query": "sevis reporting requirement?"}
+{"id": 47, "query": "ta eligibility international?"}
+{"id": 48, "query": "travel during semester?"}
+{"id": 49, "query": "ra ta tuition waiver?"}
+{"id": 50, "query": "assistantship eligibility grad?"}
+{"id": 51, "query": "minimum credits for assistantship?"}
+{"id": 52, "query": "academic load for stipend?"}
+{"id": 53, "query": "fee waiver rules?"}
+{"id": 54, "query": "summer assistantship allowed?"}
+{"id": 55, "query": "in state tuition eligibility?"}
+{"id": 56, "query": "what is grad 900?"}
+{"id": 57, "query": "independent study credits?"}
+{"id": 58, "query": "gta training requirement?"}
+{"id": 59, "query": "internship credits allowed?"}
+{"id": 60, "query": "jterm credits count?"}
+{"id": 61, "query": "biotech ms total credits?"}
+{"id": 62, "query": "biotech core credits?"}
+{"id": 63, "query": "biotech elective credits?"}
+{"id": 64, "query": "capstone credits biotech?"}
+{"id": 65, "query": "biotech capstone start after 9 credits?"}
+{"id": 66, "query": "purpose of biotech core?"}
+{"id": 67, "query": "biotech faculty advisor role?"}
+{"id": 68, "query": "cybersecurity ms location?"}
+{"id": 69, "query": "cybersecurity ms designed for?"}
+{"id": 70, "query": "cybersecurity learning modes?"}
+{"id": 71, "query": "it ms internship required?"}
+{"id": 72, "query": "it ms core credits?"}
