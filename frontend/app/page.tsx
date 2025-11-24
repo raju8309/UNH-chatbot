@@ -196,7 +196,18 @@ function AnswerVersion({
 }
 
 export default function Home() {
-  const [sessionId] = useState(() => crypto.randomUUID());
+  const [sessionId] = useState(() => {
+    // Generate a UUID with fallback for environments where crypto.randomUUID is not available
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+      return crypto.randomUUID();
+    }
+    // Fallback: generate a simple UUID v4
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+      const r = Math.random() * 16 | 0;
+      const v = c === 'x' ? r : (r & 0x3 | 0x8);
+      return v.toString(16);
+    });
+  });
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [allQuestions, setAllQuestions] = useState<string[]>([]);
@@ -355,24 +366,17 @@ export default function Home() {
   return (
     <main className="min-h-screen h-screen flex flex-col bg-[var(--unh-white)]">
       <header
-        className="bg-[var(--unh-blue)] px-8 py-2 text-center shadow-md flex-none"
+        className="bg-[var(--unh-blue)] px-4 md:px-8 py-1 md:py-2 text-center shadow-md flex-none"
         style={{ color: "#fff", zIndex: 20, position: "relative" }}
       >
         <div className="flex items-center">
           <img
             src="/unh.svg"
             alt="UNH Logo"
-            className="my-6 mr-4"
-            style={{
-              maxWidth: "125px",
-              height: "auto",
-              width: "auto",
-              marginTop: "24px",
-              marginBottom: "24px",
-            }}
+            className="my-2 md:my-6 mr-2 md:mr-4 w-16 md:w-[125px]"
           />
           <span
-            className="text-3xl font-bold"
+            className="text-xl md:text-3xl font-bold"
             style={{ fontFamily: "Glypha, Arial, sans-serif" }}
           >
             GradCatBot
@@ -382,9 +386,9 @@ export default function Home() {
 
       <div className="flex-1 flex flex-col items-center overflow-hidden min-h-0">
         {!hasUserMessage ? (
-          <div className="flex-1 flex items-center justify-center w-full min-h-0 overflow-hidden">
+          <div className="flex-1 flex flex-col md:justify-center w-full min-h-0 overflow-auto">
             <section
-              className="w-full max-w-3xl mx-auto px-6 py-4 flex flex-col flex-1 min-h-0 justify-center"
+              className="w-full max-w-3xl mx-auto px-6 py-4 flex flex-col"
               style={{ zIndex: 0, position: "relative" }}
             >
               <h1 className="text-3xl font-bold mb-4 text-center text-gray-400 flex-none">
@@ -393,7 +397,7 @@ export default function Home() {
               <div
                 className={`grid grid-cols-1 sm:grid-cols-2 gap-4 w-full transition-opacity duration-300 pr-3 pb-8 pt-1 pl-1 ${
                   fade ? "opacity-0" : "opacity-100"
-                } max-h-full overflow-y-auto`}
+                }`}
                 style={{ scrollbarGutter: 'stable both-edges' }}
               >
                 {displayedQuestions.map((q, idx) => (
@@ -410,8 +414,8 @@ export default function Home() {
             </section>
           </div>
         ) : (
-          <div className="w-2/3 flex flex-col h-full">
-            <div className="flex-1 overflow-y-auto overflow-x-hidden px-4 py-2">
+          <div className="w-full md:w-2/3 flex flex-col h-full">
+            <div className="flex-1 overflow-y-auto overflow-x-hidden px-2 md:px-4 py-2">
               {messages.map((msg, i) => {
                 const isRoleChange = i > 0 && messages[i - 1].role !== msg.role;
                 
@@ -424,12 +428,12 @@ export default function Home() {
                       }`}
                       style={isRoleChange ? { marginTop: "1rem" } : {}}
                     >
-                      <div className="bg-[var(--unh-blue)] text-[var(--unh-white)] rounded-2xl px-6 py-4 text-lg md:text-xl max-w-[800px] shadow-lg">
+                      <div className="bg-[var(--unh-blue)] text-[var(--unh-white)] rounded-2xl px-4 md:px-6 py-3 md:py-4 text-base md:text-lg lg:text-xl max-w-[95%] md:max-w-[800px] shadow-lg">
                         {msg.content}
                       </div>
-                      <div className="flex-shrink-0 w-10 h-10 ml-2 mb-1">
-                        <div className="w-10 h-10 bg-[var(--unh-blue)] rounded-full flex items-center justify-center">
-                          <img src="/student.svg" alt="User" className="w-6 h-6" />
+                      <div className="flex-shrink-0 w-8 h-8 md:w-10 md:h-10 ml-2 mb-1">
+                        <div className="w-8 h-8 md:w-10 md:h-10 bg-[var(--unh-blue)] rounded-full flex items-center justify-center">
+                          <img src="/student.svg" alt="User" className="w-5 h-5 md:w-6 md:h-6" />
                         </div>
                       </div>
                     </div>
@@ -447,13 +451,13 @@ export default function Home() {
                       }`}
                       style={isRoleChange ? { marginTop: "1rem" } : {}}
                     >
-                      <div className="flex-shrink-0 w-10 h-10 mr-2 mt-1">
-                        <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-md">
-                          <img src="/mascot.svg" alt="Bot" className="w-8 h-8" />
+                      <div className="flex-shrink-0 w-8 h-8 md:w-10 md:h-10 mr-2 mt-1">
+                        <div className="w-8 h-8 md:w-10 md:h-10 bg-white rounded-full flex items-center justify-center shadow-md">
+                          <img src="/mascot.svg" alt="Bot" className="w-6 h-6 md:w-8 md:h-8" />
                         </div>
                       </div>
                       
-                      <div className="max-w-[800px] w-full">
+                      <div className="max-w-[95%] md:max-w-[800px] w-full">
                         {showDual && !hasSelection ? (
                           <div className="space-y-2">
                             <div className="text-sm text-gray-600 mb-2 px-2 font-medium">
@@ -477,7 +481,7 @@ export default function Home() {
                             />
                           </div>
                         ) : showDual && hasSelection ? (
-                          <div className="bg-[var(--unh-light-gray)] text-black rounded-2xl px-6 py-4 text-lg md:text-xl shadow-md">
+                          <div className="bg-[var(--unh-light-gray)] text-black rounded-2xl px-4 md:px-6 py-3 md:py-4 text-base md:text-lg lg:text-xl shadow-md">
                             <div dangerouslySetInnerHTML={{ 
                               __html: linkify(selectedVersion === "primary" ? msg.content : msg.alternativeAnswer!) 
                             }} />
@@ -487,7 +491,7 @@ export default function Home() {
                             )}
                           </div>
                         ) : (
-                          <div className="bg-[var(--unh-light-gray)] text-black rounded-2xl px-6 py-4 text-lg md:text-xl shadow-md">
+                          <div className="bg-[var(--unh-light-gray)] text-black rounded-2xl px-4 md:px-6 py-3 md:py-4 text-base md:text-lg lg:text-xl shadow-md">
                             <div dangerouslySetInnerHTML={{ __html: linkify(msg.content) }} />
                             
                             {msg.sources && msg.sources.length > 0 && (
@@ -507,8 +511,8 @@ export default function Home() {
       </div>
 
       <div className="w-full flex flex-col flex-none" style={{ background: 'white', zIndex: 10 }}>
-        <div className="w-full px-4">
-          <div className="mx-auto w-2/3 flex gap-2 py-2">
+        <div className="w-full px-2 md:px-4">
+          <div className="mx-auto w-full md:w-2/3 flex gap-2 py-2">
             <div className="flex-1 flex items-center">
               <div className="relative w-full flex items-center">
                 <button
@@ -584,8 +588,8 @@ export default function Home() {
             </div>
           </div>
         </div>
-        <div className="w-full px-4 pb-4 text-center text-sm text-gray-500">
-          <p className="mx-auto w-2/3 text-lg">
+        <div className="w-full px-2 md:px-4 pb-2 md:pb-4 text-center text-xs md:text-sm text-gray-500">
+          <p className="mx-auto w-full md:w-2/3 text-sm md:text-lg">
             Not answering your question? Contact us at grad.school@unh.edu.
           </p>
         </div>
