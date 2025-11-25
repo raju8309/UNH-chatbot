@@ -112,14 +112,14 @@ beam_search:
   diversity_penalty: 0.3
 
 gold_set:
-  enabled: false
+  enabled: true
   gold_file_path: "../automation_testing/gold.jsonl"
 
   # direct answer feature
   enable_direct_answer: true
   direct_answer_threshold: 0.85
 
-  enable_dual_answers: true
+  enable_dual_answers: false
 
   # boost settings
   tier_boost: 3.0
