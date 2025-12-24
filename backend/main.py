@@ -47,6 +47,18 @@ def create_app() -> FastAPI:
     if frontend_path.is_dir():
         app.mount("/", StaticFiles(directory=str(frontend_path), html=True), name="frontend")
         print(f"Mounted frontend from: {frontend_path}")
+    else:
+        @app.get("/")
+        async def root():
+            return {
+                "status": "ok",
+                "message": "UNH Catalog RAG API is running",
+                "docs": "/docs",
+            }
+
+        @app.get("/health")
+        async def health():
+            return {"status": "ok"}
     
     return app
 
