@@ -29,10 +29,15 @@ def create_app() -> FastAPI:
     app = FastAPI(title="UNH Catalog RAG API", lifespan=lifespan)
     
     # setup CORS
+    frontend_origins_raw = os.getenv("FRONTEND_ORIGINS")
     public_url = os.getenv("PUBLIC_URL", "http://localhost:8003/")
+    public_url = public_url.rstrip("/")
+    allow_origins = ["http://localhost:3000", "http://127.0.0.1:3000", public_url]
+    if frontend_origins_raw:
+        allow_origins = [o.strip().rstrip("/") for o in frontend_origins_raw.split(",") if o.strip()]
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=[public_url],
+        allow_origins=allow_origins,
         allow_credentials=False,
         allow_methods=["*"],
         allow_headers=["*"],

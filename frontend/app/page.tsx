@@ -2,7 +2,9 @@
 
 import React, { useState, useRef, useEffect } from "react";
 
-const CHAT_API_URL = "/chat";
+const API_BASE_URL = (process.env.NEXT_PUBLIC_API_BASE_URL || "").replace(/\/+$/, "");
+const apiUrl = (path: string) => `${API_BASE_URL}${path.startsWith("/") ? "" : "/"}${path}`;
+const CHAT_API_URL = apiUrl("/chat");
 
 export type ChatMessage = {
   role: string;
@@ -342,7 +344,7 @@ export default function Home() {
     
     // Log the user's selection with full context
     try {
-      await fetch('/log-answer-selection', {
+      await fetch(apiUrl("/log-answer-selection"), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -521,7 +523,7 @@ export default function Home() {
                     setInput("");
                     setMessages([]);
                     try {
-                      await fetch("/reset", {
+                      await fetch(apiUrl("/reset"), {
                         method: "POST",
                         headers: {
                           "Content-Type": "application/json",
