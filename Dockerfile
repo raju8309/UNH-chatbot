@@ -1,8 +1,8 @@
 # Use official Python image
 FROM python:3.10-slim
 
-# Set public url environment variable
-ENV PUBLIC_URL=https://whitemount-t3.sr.unh.edu/
+# Set environment variables
+ENV PUBLIC_URL=http://localhost:8080
 ENV PIP_NO_CACHE_DIR=1
 ENV PYTHONUNBUFFERED=1
 
@@ -15,18 +15,17 @@ RUN apt-get update && \
 # Set work directory
 WORKDIR /app
 
-# Install Python dependencies in smaller batches to reduce peak disk usage
 COPY requirements.txt .
 
 # Install numpy first
 RUN pip install --no-cache-dir numpy>=1.26.0 && rm -rf /tmp/* /root/.cache
 
-# Install PyTorch CPU-only version (MUCH smaller than GPU version)
+# Install PyTorch CPU-only version
 RUN pip install --no-cache-dir torch>=2.8.0 --index-url https://download.pytorch.org/whl/cpu && \
     rm -rf /tmp/* /root/.cache
 
-# Install sentence transformers and related packages
-RUN pip install --no-cache-dir sentence-transformers>=3.0.0 transformers && rm -rf /tmp/* /root/.cache
+# ✅ FIX: Pin transformers to version that supports text2text-generation
+RUN pip install --no-cache-dir sentence-transformers>=3.0.0 transformers==4.44.0 && rm -rf /tmp/* /root/.cache
 
 # Install FastAPI and uvicorn
 RUN pip install --no-cache-dir fastapi>=0.115.0 uvicorn[standard]>=0.30.0 && rm -rf /tmp/* /root/.cache
@@ -43,7 +42,7 @@ RUN pip install --no-cache-dir \
     langchain-core==0.0.13 && \
     rm -rf /tmp/* /root/.cache
 
-# NOW copy application code
+# Copy application code
 COPY backend/ ./backend/
 COPY scraper/ ./scraper/
 COPY frontend/ ./frontend/
@@ -57,11 +56,11 @@ RUN npm install && \
     npm run build && \
     rm -rf node_modules /root/.npm /tmp/*
 
-# Set workdir to backend for running the server
+# Set workdir to backend
 WORKDIR /app/backend
 
-# Expose port
-EXPOSE 8003
+# Expose port 8080 for AWS
+EXPOSE 8080
 
-# Start backend
-CMD ["python3", "main.py"]
+# Start backend with uvicorn on port 8080
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080"]
