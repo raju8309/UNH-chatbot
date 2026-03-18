@@ -73,7 +73,7 @@ jobs:
       - name: Deploy to Elastic Beanstalk
         run: |
           eb init UNH-chatbot --platform docker --region us-west-2
-          eb deploy unh-chatbot-env-v5 --timeout 30
+          eb deploy unh-chatbot-env-v6 --timeout 30
 
   notify:
     name: 📬 Send Notification
