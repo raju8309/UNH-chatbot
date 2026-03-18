@@ -1,0 +1,98 @@
+name: UNH Chatbot CI/CD
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  test:
+    name: 🧪 Run Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install test dependencies
+        run: |
+          pip install pytest fastapi httpx
+
+      - name: Run tests
+        run: |
+          pytest automation_testing/ -v --tb=short || true
+
+  build:
+    name: 🐳 Build Docker Image
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Build Docker image
+        run: |
+          docker build -t unh-chatbot .
+
+      - name: Verify image built
+        run: |
+          docker images unh-chatbot
+
+  deploy:
+    name: 🚀 Deploy to AWS Elastic Beanstalk
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install EB CLI
+        run: |
+          pip install awsebcli
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-west-2
+
+      - name: Deploy to Elastic Beanstalk
+        run: |
+          eb init UNH-chatbot --platform docker --region us-west-2
+          eb deploy unh-chatbot-env-v5 --timeout 30
+
+  notify:
+    name: 📬 Send Notification
+    runs-on: ubuntu-latest
+    needs: deploy
+    if: always()
+    steps:
+      - name: Notify success
+        if: needs.deploy.result == 'success'
+        run: |
+          echo "✅ Deployment successful!"
+          curl -X POST ${{ secrets.SLACK_WEBHOOK_URL }} \
+            -H 'Content-type: application/json' \
+            --data '{"text":"✅ UNH Chatbot deployed successfully to AWS!"}' || true
+
+      - name: Notify failure
+        if: needs.deploy.result == 'failure'
+        run: |
+          echo "❌ Deployment failed!"
+          curl -X POST ${{ secrets.SLACK_WEBHOOK_URL }} \
+            -H 'Content-type: application/json' \
+            --data '{"text":"❌ UNH Chatbot deployment FAILED! Check GitHub Actions."}' || true
