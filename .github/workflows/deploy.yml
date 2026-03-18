@@ -64,7 +64,7 @@ jobs:
           pip install awsebcli
 
       - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v2
+        uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -83,16 +83,8 @@ jobs:
     steps:
       - name: Notify success
         if: needs.deploy.result == 'success'
-        run: |
-          echo "✅ Deployment successful!"
-          curl -X POST ${{ secrets.SLACK_WEBHOOK_URL }} \
-            -H 'Content-type: application/json' \
-            --data '{"text":"✅ UNH Chatbot deployed successfully to AWS!"}' || true
+        run: echo "✅ Deployment successful!"
 
       - name: Notify failure
         if: needs.deploy.result == 'failure'
-        run: |
-          echo "❌ Deployment failed!"
-          curl -X POST ${{ secrets.SLACK_WEBHOOK_URL }} \
-            -H 'Content-type: application/json' \
-            --data '{"text":"❌ UNH Chatbot deployment FAILED! Check GitHub Actions."}' || true
+        run: echo "❌ Deployment failed! Check logs."

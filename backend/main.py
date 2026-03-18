@@ -1,73 +1,66 @@
-import os
-from contextlib import asynccontextmanager
-from pathlib import Path
-import uvicorn
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
-from config.settings import load_retrieval_config
-from models.ml_models import initialize_models
-from routers import chat, dashboard
-from services.chunk_service import load_initial_data
-from utils.logging_utils import ensure_chat_log_file
+# Use official Python image
+FROM python:3.10-slim
 
-BASE_DIR = Path(__file__).resolve().parent.parent
+# Set environment variables
+ENV PUBLIC_URL=http://localhost:8080
+ENV PIP_NO_CACHE_DIR=1
+ENV PYTHONUNBUFFERED=1
 
-def startup():
-    load_retrieval_config()
-    initialize_models()
-    ensure_chat_log_file()
-    load_initial_data()
-    print("Application startup complete")
+# Install Node.js, npm, and build tools for Python packages
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends nodejs npm build-essential && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    startup()
-    yield
+# Set work directory
+WORKDIR /app
 
-def create_app() -> FastAPI:
-    app = FastAPI(title="UNH Catalog RAG API", lifespan=lifespan)
-    
-    # setup CORS
-    frontend_origins_raw = os.getenv("FRONTEND_ORIGINS")
-    public_url = os.getenv("PUBLIC_URL", "http://localhost:8003/")
-    public_url = public_url.rstrip("/")
-    allow_origins = ["http://localhost:3000", "http://127.0.0.1:3000", public_url]
-    if frontend_origins_raw:
-        allow_origins = [o.strip().rstrip("/") for o in frontend_origins_raw.split(",") if o.strip()]
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=allow_origins,
-        allow_credentials=False,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
-    
-    # include routers (no prefix since routes already have paths)
-    app.include_router(chat.router, tags=["chat"])
-    app.include_router(dashboard.router)
-    
-    # mount frontend static files
-    frontend_path = BASE_DIR / "frontend" / "out"
-    if frontend_path.is_dir():
-        app.mount("/", StaticFiles(directory=str(frontend_path), html=True), name="frontend")
-        print(f"Mounted frontend from: {frontend_path}")
-    else:
-        @app.get("/")
-        async def root():
-            return {
-                "status": "ok",
-                "message": "UNH Catalog RAG API is running",
-                "docs": "/docs",
-            }
+COPY requirements.txt .
 
-        @app.get("/health")
-        async def health():
-            return {"status": "ok"}
-    
-    return app
+# Install numpy first
+RUN pip install --no-cache-dir numpy>=1.26.0 && rm -rf /tmp/* /root/.cache
 
-app = create_app()
+# Install PyTorch CPU-only version
+RUN pip install no-cache-dir torch>=2.8.0 --index-url https://download.pytorch.org/whl/cpu && \
+    rm -rf /tmp/* /root/.cache
 
-if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8003, reload=False)
+# Pin transformers to version that supports text2text-generation
+RUN pip install --no-cache-dir sentence-transformers>=3.0.0 transformers==4.44.0 && rm -rf /tmp/* /root/.cache
+
+# Install FastAPI and uvicorn
+RUN pip install --no-cache-dir fastapi>=0.115.0 uvicorn[standard]>=0.30.0 && rm -rf /tmp/* /root/.cache
+
+# Install remaining packages
+RUN pip install --no-cache-dir \
+    bert-score>=0.3.13 \
+    openpyxl>=3.1.0 \
+    protobuf>=4.21.0 \
+    accelerate>=1.10.0 \
+    sentencepiece>=0.1.99 \
+    datasets>=4.1.1 \
+    langchain==0.0.335 \
+    langchain-core==0.0.13 && \
+    rm -rf /tmp/* /root/.cache
+
+# Copy application code
+COPY backend/ ./backend/
+COPY scraper/ ./scraper/
+COPY frontend/ ./frontend/
+COPY automation_testing/ ./automation_testing/
+COPY chat_logs.csv ./chat_logs.csv
+
+# Build frontend
+WORKDIR /app/frontend
+RUN sed -i 's|..\/chat_logs.csv|\/app\/chat_logs.csv|g' gen_questions.py || true
+RUN npm install && \
+    npm run build && \
+    rm -rf node_modules /root/.npm /tmp/*
+
+# Set workdir to backend
+WORKDIR /app/backend
+
+# Expose port 8080 for AWS
+EXPOSE 8080
+
+# Start backend with uvicorn on port 8080
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080"]
